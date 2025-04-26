@@ -19,11 +19,11 @@ const Footer = () => {
           <div>
             <h3 className="text-sm font-semibold text-gray-200 tracking-wider uppercase">Services</h3>
             <ul className="mt-4 space-y-2">
-              <li><a href="#" className="text-gray-300 hover:text-white">Home Repair</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-white">Lawn Care</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-white">Cleaning</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-white">Plumbing</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-white">Electrical</a></li>
+              <li><Link to="/services#home-repair" className="text-gray-300 hover:text-white">Home Repair</Link></li>
+              <li><Link to="/services#lawn-care" className="text-gray-300 hover:text-white">Lawn Care</Link></li>
+              <li><Link to="/services#cleaning" className="text-gray-300 hover:text-white">Cleaning</Link></li>
+              <li><Link to="/services#plumbing" className="text-gray-300 hover:text-white">Plumbing</Link></li>
+              <li><Link to="/services#electrical" className="text-gray-300 hover:text-white">Electrical</Link></li>
             </ul>
           </div>
           
@@ -31,19 +31,16 @@ const Footer = () => {
             <h3 className="text-sm font-semibold text-gray-200 tracking-wider uppercase">Company</h3>
             <ul className="mt-4 space-y-2">
               <li><Link to="/about" className="text-gray-300 hover:text-white">About Us</Link></li>
-              <li><Link to="/careers" className="text-gray-300 hover:text-white">Careers</Link></li>
-              <li><Link to="/blog" className="text-gray-300 hover:text-white">Blog</Link></li>
-              <li><a href="#" className="text-gray-300 hover:text-white">Press</a></li>
+              <li><Link to="/how-it-works" className="text-gray-300 hover:text-white">How It Works</Link></li>
             </ul>
           </div>
           
           <div>
             <h3 className="text-sm font-semibold text-gray-200 tracking-wider uppercase">Legal</h3>
             <ul className="mt-4 space-y-2">
-              <li><a href="#" className="text-gray-300 hover:text-white">Privacy Policy</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-white">Terms of Service</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-white">Cookie Policy</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-white">GDPR</a></li>
+              <li><Link to="/privacy-policy" className="text-gray-300 hover:text-white">Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service" className="text-gray-300 hover:text-white">Terms of Service</Link></li>
+              <li><Link to="/cookie-policy" className="text-gray-300 hover:text-white">Cookie Policy</Link></li>
             </ul>
           </div>
         </div>
