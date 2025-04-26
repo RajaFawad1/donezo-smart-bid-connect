@@ -24,7 +24,7 @@ const HowItWorks = () => {
     {
       number: '04',
       title: 'Get it Done',
-      description: 'Your selected provider completes the job. Payment is only released when you're satisfied.',
+      description: "Your selected provider completes the job. Payment is only released when you're satisfied.", // Changed to double quotes
       color: 'donezo-teal',
     },
   ];
