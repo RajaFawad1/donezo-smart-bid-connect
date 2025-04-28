@@ -5,6 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import PrimaryButton from '../buttons/PrimaryButton';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,15 +21,39 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [userType, setUserType] = useState<'customer' | 'provider'>('customer');
+  const [loading, setLoading] = useState(false);
+  
+  const { signIn, signUp } = useAuth();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // This would connect to authentication service in a real implementation
-    console.log('Auth submission:', { view, email, password, name, userType });
+    setLoading(true);
     
-    // Mock successful auth for demo purposes
-    alert(`${view === 'login' ? 'Login' : 'Signup'} successful! This would connect to a real auth system.`);
-    onClose();
+    try {
+      if (view === 'login') {
+        await signIn(email, password);
+        toast({
+          title: "Login successful",
+          description: "Welcome back to Donezo!",
+        });
+      } else {
+        await signUp(email, password, name, userType);
+        toast({
+          title: "Account created",
+          description: "Please check your email to verify your account.",
+        });
+      }
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: view === 'login' ? "Login failed" : "Signup failed",
+        description: error.message || "An error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,6 +84,7 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
                   placeholder="your@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
                   required
                 />
               </div>
@@ -67,6 +95,7 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
                   required
                 />
               </div>
@@ -75,8 +104,15 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
                   Forgot password?
                 </a>
               </div>
-              <PrimaryButton type="submit" className="w-full">
-                Login
+              <PrimaryButton type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Logging in...
+                  </>
+                ) : (
+                  'Login'
+                )}
               </PrimaryButton>
             </form>
           </TabsContent>
@@ -91,6 +127,7 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
                   placeholder="John Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  disabled={loading}
                   required
                 />
               </div>
@@ -102,6 +139,7 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
                   placeholder="your@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
                   required
                 />
               </div>
@@ -112,6 +150,7 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
                   required
                 />
               </div>
@@ -124,7 +163,7 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
                         ? 'bg-donezo-blue text-white border-donezo-blue'
                         : 'bg-white text-gray-700 border-gray-300 hover:border-donezo-blue'
                     }`}
-                    onClick={() => setUserType('customer')}
+                    onClick={() => !loading && setUserType('customer')}
                   >
                     Customer
                   </div>
@@ -134,14 +173,21 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
                         ? 'bg-donezo-teal text-white border-donezo-teal'
                         : 'bg-white text-gray-700 border-gray-300 hover:border-donezo-teal'
                     }`}
-                    onClick={() => setUserType('provider')}
+                    onClick={() => !loading && setUserType('provider')}
                   >
                     Service Provider
                   </div>
                 </div>
               </div>
-              <PrimaryButton type="submit" className="w-full">
-                Create Account
+              <PrimaryButton type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  'Create Account'
+                )}
               </PrimaryButton>
             </form>
           </TabsContent>
@@ -149,11 +195,11 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
         
         <div className="text-xs text-gray-500 text-center mt-4">
           By continuing, you agree to Donezo's{' '}
-          <a href="#" className="text-donezo-blue hover:underline">
+          <a href="/terms-of-service" className="text-donezo-blue hover:underline">
             Terms of Service
           </a>{' '}
           and{' '}
-          <a href="#" className="text-donezo-blue hover:underline">
+          <a href="/privacy-policy" className="text-donezo-blue hover:underline">
             Privacy Policy
           </a>
           .

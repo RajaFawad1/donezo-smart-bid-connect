@@ -1,14 +1,26 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import PrimaryButton from './buttons/PrimaryButton';
-import { Dialog } from '@/components/ui/dialog';
+import AuthModal from './auth/AuthModal';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authType, setAuthType] = useState<'login' | 'signup'>('login');
+  const { user, signOut, loading } = useAuth();
+  const { toast } = useToast();
 
   const openLoginModal = () => {
     setAuthType('login');
@@ -18,6 +30,37 @@ const Navbar = () => {
   const openSignupModal = () => {
     setAuthType('signup');
     setIsAuthModalOpen(true);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Signed out",
+        description: "You have been successfully signed out.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error signing out",
+        description: error.message || "An error occurred during sign out.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getUserInitials = () => {
+    if (!user) return '';
+    
+    // Try to get initials from the metadata if available
+    const metadata = user.user_metadata;
+    const fullName = metadata?.full_name || '';
+    
+    if (fullName) {
+      return fullName.split(' ').map(name => name[0]).join('').toUpperCase();
+    }
+    
+    // Fallback to the first letter of the email
+    return user.email ? user.email[0].toUpperCase() : 'U';
   };
 
   return (
@@ -43,19 +86,59 @@ const Navbar = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
-            <PrimaryButton 
-              variant="outline" 
-              size="sm"
-              onClick={openLoginModal}
-            >
-              Log In
-            </PrimaryButton>
-            <PrimaryButton 
-              onClick={openSignupModal}
-              size="sm"
-            >
-              Sign Up
-            </PrimaryButton>
+            {!loading && !user ? (
+              <>
+                <PrimaryButton 
+                  variant="outline" 
+                  size="sm"
+                  onClick={openLoginModal}
+                >
+                  Log In
+                </PrimaryButton>
+                <PrimaryButton 
+                  onClick={openSignupModal}
+                  size="sm"
+                >
+                  Sign Up
+                </PrimaryButton>
+              </>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center space-x-2 cursor-pointer">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-donezo-blue text-white">
+                        {getUserInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium text-gray-700 hidden md:inline-block">
+                      {user?.user_metadata?.full_name || user?.email}
+                    </span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-4 py-2">
+                    <p className="text-sm font-medium leading-none">
+                      {user?.user_metadata?.full_name || 'User'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 truncate">
+                      {user?.email}
+                    </p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="cursor-pointer">Dashboard</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
           <div className="-mr-2 flex items-center sm:hidden">
             <button
@@ -98,32 +181,65 @@ const Navbar = () => {
             >
               About
             </Link>
-            <div className="mt-4 space-y-2 px-3">
-              <PrimaryButton 
-                variant="outline" 
-                className="w-full justify-center"
-                onClick={() => {
-                  openLoginModal();
-                  setMobileMenuOpen(false);
-                }}
-              >
-                Log In
-              </PrimaryButton>
-              <PrimaryButton 
-                className="w-full justify-center"
-                onClick={() => {
-                  openSignupModal();
-                  setMobileMenuOpen(false);
-                }}
-              >
-                Sign Up
-              </PrimaryButton>
-            </div>
+            {!loading && !user ? (
+              <div className="mt-4 space-y-2 px-3">
+                <PrimaryButton 
+                  variant="outline" 
+                  className="w-full justify-center"
+                  onClick={() => {
+                    openLoginModal();
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Log In
+                </PrimaryButton>
+                <PrimaryButton 
+                  className="w-full justify-center"
+                  onClick={() => {
+                    openSignupModal();
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Sign Up
+                </PrimaryButton>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-2 px-3">
+                <Link 
+                  to="/dashboard" 
+                  className="block py-2 text-base font-medium text-gray-600 hover:text-gray-800"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <Link 
+                  to="/profile" 
+                  className="block py-2 text-base font-medium text-gray-600 hover:text-gray-800"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Profile
+                </Link>
+                <PrimaryButton 
+                  variant="outline" 
+                  className="w-full justify-center mt-2"
+                  onClick={() => {
+                    handleSignOut();
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Sign Out
+                </PrimaryButton>
+              </div>
+            )}
           </div>
         </div>
       )}
-      
-      {/* Auth Modal will be implemented separately */}
+
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        initialView={authType} 
+      />
     </nav>
   );
 };

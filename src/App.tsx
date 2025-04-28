@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +13,8 @@ import HowItWorks from "./components/HowItWorks";
 import PrivacyPolicy from "./pages/policies/PrivacyPolicy";
 import TermsOfService from "./pages/policies/TermsOfService";
 import CookiePolicy from "./pages/policies/CookiePolicy";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -31,6 +34,8 @@ const App = () => (
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="/cookie-policy" element={<CookiePolicy />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
