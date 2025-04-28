@@ -1,13 +1,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Get Supabase URL and anon key from environment variables
-// These variables are automatically available when connected to Supabase through Lovable
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Use the hardcoded values from the auto-generated client
+const SUPABASE_URL = "https://fktsblchzslffbykmvcq.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrdHNibGNoenNsZmZieWttdmNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4MTMwMzEsImV4cCI6MjA2MTM4OTAzMX0.FyyQxMqlbp-WSCg486BgV4tkXZ_XbolMAKsmIQekeXM";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase URL or anon key. Make sure Supabase is properly connected.');
-}
-
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
