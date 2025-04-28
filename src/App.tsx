@@ -15,6 +15,9 @@ import TermsOfService from "./pages/policies/TermsOfService";
 import CookiePolicy from "./pages/policies/CookiePolicy";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import JobDetails from "./pages/JobDetails";
+import Messages from "./pages/Messages";
+import Notifications from "./pages/Notifications";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -36,6 +39,10 @@ const App = () => (
             <Route path="/cookie-policy" element={<CookiePolicy />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/jobs/:jobId" element={<JobDetails />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route path="/messages/:userId" element={<Messages />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
