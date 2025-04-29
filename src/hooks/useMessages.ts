@@ -75,7 +75,7 @@ export function useMessages() {
     const uniqueUsers = new Map();
     
     if (sent) {
-      sent.forEach(msg => {
+      sent.forEach((msg: any) => {
         if (!uniqueUsers.has(msg.receiver_id)) {
           uniqueUsers.set(msg.receiver_id, {
             id: msg.receiver_id,
@@ -86,7 +86,7 @@ export function useMessages() {
     }
     
     if (received) {
-      received.forEach(msg => {
+      received.forEach((msg: any) => {
         if (!uniqueUsers.has(msg.sender_id)) {
           uniqueUsers.set(msg.sender_id, {
             id: msg.sender_id,
@@ -112,9 +112,9 @@ export function useMessages() {
     if (error) throw error;
     
     // Mark messages as read
-    const unreadMessages = data.filter(msg => 
+    const unreadMessages = data.filter((msg: any) => 
       msg.receiver_id === userId && !msg.is_read
-    ).map(msg => msg.id);
+    ).map((msg: any) => msg.id);
     
     if (unreadMessages.length > 0) {
       await supabase

@@ -37,21 +37,29 @@ export function useJobs() {
   };
 
   const getMyJobs = async (): Promise<Job[]> => {
-    const user = await supabase.auth.getUser();
-    const userId = user.data.user?.id;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      console.log("No user ID found for getMyJobs");
+      return [];
+    }
+    
+    console.log("Fetching jobs for user:", userId);
     
     const { data, error } = await supabase
       .from('jobs')
-      .select('*, category:service_categories(*), bids_count:bids(count)')
-      .eq('customer_id', userId || '')
+      .select('*, category:service_categories(*)')
+      .eq('customer_id', userId)
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching my jobs:", error);
+      throw error;
+    }
     
-    return data.map(job => ({
-      ...job,
-      bids_count: job.bids_count[0].count
-    })) as Job[];
+    console.log("Jobs fetched:", data?.length || 0);
+    return data as Job[] || [];
   };
 
   const getOpenJobs = async (): Promise<Job[]> => {
@@ -70,13 +78,34 @@ export function useJobs() {
   };
 
   const createJob = async (job: Partial<Job>): Promise<Job> => {
+    console.log("Creating job with data:", job);
+    
+    // Ensure the job has proper customer_id and status values
+    if (!job.customer_id) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) {
+        throw new Error("User must be logged in to create a job");
+      }
+      job.customer_id = userData.user.id;
+    }
+    
+    // Ensure status is set correctly
+    if (!job.status) {
+      job.status = "open";
+    }
+
     const { data, error } = await supabase
       .from('jobs')
       .insert([job])
       .select('*')
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error creating job:", error);
+      throw error;
+    }
+    
+    console.log("Job created successfully:", data);
     return data as Job;
   };
 
@@ -112,6 +141,8 @@ export function useJobs() {
     return useQuery({
       queryKey: ['myJobs'],
       queryFn: getMyJobs,
+      refetchOnWindowFocus: true,
+      staleTime: 1000 * 60, // 1 minute
     });
   };
 
@@ -126,13 +157,15 @@ export function useJobs() {
   const useCreateJob = () => {
     return useMutation({
       mutationFn: createJob,
-      onSuccess: () => {
+      onSuccess: (data) => {
+        // Invalidate all job-related queries to refresh data
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
         queryClient.invalidateQueries({ queryKey: ['myJobs'] });
         queryClient.invalidateQueries({ queryKey: ['openJobs'] });
         toast({ title: 'Job created successfully!' });
       },
       onError: (error: any) => {
+        console.error("Error creating job:", error);
         toast({ 
           title: 'Failed to create job', 
           description: error.message,
