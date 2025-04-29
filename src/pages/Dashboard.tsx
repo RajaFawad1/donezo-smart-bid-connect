@@ -13,8 +13,20 @@ const Dashboard = () => {
   
   useEffect(() => {
     // Redirect to home if not logged in
+<<<<<<< HEAD
     if (!loading && !user) {
       navigate('/');
+=======
+    if (!loading) {
+      if (!user) {
+        navigate('/');
+      } else {
+        // When user is authenticated, make sure to invalidate queries to fetch fresh data
+        queryClient.invalidateQueries({ queryKey: ['myJobs'] });
+        queryClient.invalidateQueries({ queryKey: ['myContracts'] });
+        setIsInitialized(true);
+      }
+>>>>>>> parent of 64793a0 (feat: Implement job bidding and AI description generation)
     }
   }, [user, loading, navigate]);
 

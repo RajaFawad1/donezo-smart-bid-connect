@@ -12,7 +12,11 @@ export function useBids() {
     const { data, error } = await supabase
       .from('bids')
       .select('*, job:job_id(*)')
+<<<<<<< HEAD
       .eq('provider_id', supabase.auth.getUser()?.id || '')
+=======
+      .eq('provider_id', userId)
+>>>>>>> parent of 64793a0 (feat: Implement job bidding and AI description generation)
       .order('created_at', { ascending: false });
     
     if (error) throw error;

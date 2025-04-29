@@ -1,14 +1,40 @@
-
 import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import * as z from 'zod';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from "@/components/ui/checkbox"
+import { Calendar } from "@/components/ui/calendar"
+import { CalendarIcon } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
 import { Switch } from '@/components/ui/switch';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
@@ -17,6 +43,9 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useJobs } from '@/hooks/useJobs';
 import { useCategories } from '@/hooks/useCategories';
+import { supabase } from '@/lib/supabase';
+import { Job } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
 const formSchema = z.object({
@@ -28,14 +57,9 @@ const formSchema = z.object({
     .refine(val => val >= 5, { message: 'Maximum budget must be at least $5' }),
   location: z.string().min(3, { message: 'Please enter a valid location' }),
   preferred_date: z.date().optional(),
-  is_emergency: z.boolean().default(false),
-  is_fix_now: z.boolean().default(false),
-}).refine(data => data.budget_max >= data.budget_min, {
-  message: "Maximum budget must be greater than or equal to minimum budget",
-  path: ["budget_max"],
+  is_emergency: z.boolean().default(false).optional(),
+  is_fix_now: z.boolean().default(false).optional(),
 });
-
-type FormValues = z.infer<typeof formSchema>;
 
 interface PostJobModalProps {
   isOpen: boolean;
@@ -43,15 +67,25 @@ interface PostJobModalProps {
 }
 
 const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
+  const { toast } = useToast();
+const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
   const { useCreateJob } = useJobs();
   const { useAllCategories } = useCategories();
-  const { user } = useAuth();
-  const { data: categories = [], isLoading: categoriesLoading } = useAllCategories();
-  const createJobMutation = useCreateJob();
-  
-  const form = useForm<FormValues>({
+  const { data: categories, isLoading: categoriesLoading } = useAllCategories();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { mutate: createJob } = useCreateJob();
+  const queryClient = useQueryClient();
+
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      title: "",
+      description: "",
+      category_id: "",
+      budget_min: 1,
+      budget_max: 100,
+      location: "",
+      preferred_date: undefined,
       title: '',
       description: '',
       category_id: '',
@@ -61,36 +95,89 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
       is_emergency: false,
       is_fix_now: false,
     },
+    },
   });
 
-  const onSubmit = async (values: FormValues) => {
-    if (!user) return;
-    
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
-      await createJobMutation.mutateAsync({
-        ...values,
-        customer_id: user.id,
-        status: 'open',
-      });
+      setIsSubmitting(true);
+      
+      // Get current user
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      
+      if (!userId) {
+        toast({
+          title: "Authentication error",
+          description: "You must be logged in to post a job.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Format preferred date as ISO string if it exists
+      const formattedDate = data.preferred_date ? new Date(data.preferred_date).toISOString() : undefined;
+      
+      // Create job with the right customer_id and explicitly typed status
+      const jobData: Partial<Job> = {
+        customer_id: userId,
+        status: "open" as "open" | "in_progress" | "completed" | "cancelled",
+        title: data.title,
+        description: data.description,
+        category_id: data.category_id,
+        budget_min: data.budget_min,
+        budget_max: data.budget_max,
+        location: data.location,
+        preferred_date: formattedDate,
+        is_emergency: data.is_emergency,
+        is_fix_now: data.is_fix_now,
+      };
+      
+      console.log("Submitting job data:", jobData);
+      
+      await createJob(jobData);
+      
+      // Immediately invalidate queries to refresh job lists
+      queryClient.invalidateQueries({ queryKey: ['myJobs'] });
+      
+      // Close modal and reset form
       form.reset();
       onClose();
+      
+      toast({
+        title: "Job created successfully",
+        description: "Your job has been posted and is now visible to service providers.",
+      });
+      
     } catch (error) {
-      console.error('Error creating job:', error);
+      console.error("Error creating job:", error);
+      toast({
+        title: "Error creating job",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[425px] max-w-[90%] w-full">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-semibold">Post a New Job</DialogTitle>
+          <DialogTitle>Post a New Job</DialogTitle>
           <DialogDescription>
-            Fill out the details below to create a new job and get bids from service providers.
+            Create a new job posting for service providers to bid on.
           </DialogDescription>
         </DialogHeader>
-        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {form.formState.errors.root && (
+              <div className="text-red-500 text-sm">
+                {form.formState.errors.root.message}
+              </div>
+            )}
+
             <FormField
               control={form.control}
               name="title"
@@ -98,7 +185,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 <FormItem>
                   <FormLabel>Job Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Fix my leaky kitchen sink" {...field} />
+                    <Input placeholder="Enter job title" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -112,39 +199,38 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 <FormItem>
                   <FormLabel>Job Description</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Describe your job in detail..." 
-                      className="min-h-[100px]" 
-                      {...field} 
+                    <Textarea
+                      placeholder="Enter job description"
+                      className="resize-none"
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="category_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                    disabled={categoriesLoading}
-                  >
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
+                        <SelectValue placeholder={
+                          categoriesLoading ? "Loading categories..." : 
+                          categories.length === 0 ? "No categories available" : "Select a category"
+                        } />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       {categoriesLoading ? (
-                        <SelectItem value="loading" disabled>Loading...</SelectItem>
+                        <SelectItem value="loading" disabled>Loading categories...</SelectItem>
                       ) : (
                         categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
+                           
                             {category.name}
                           </SelectItem>
                         ))
@@ -155,8 +241,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 </FormItem>
               )}
             />
-
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex space-x-2">
               <FormField
                 control={form.control}
                 name="budget_min"
@@ -164,6 +249,11 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                   <FormItem>
                     <FormLabel>Min Budget ($)</FormLabel>
                     <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Minimum budget"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
                       <Input 
                         type="number" 
                         {...field} 
@@ -183,6 +273,11 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                   <FormItem>
                     <FormLabel>Max Budget ($)</FormLabel>
                     <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Maximum budget"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
                       <Input 
                         type="number" 
                         {...field} 
@@ -195,7 +290,6 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 )}
               />
             </div>
-
             <FormField
               control={form.control}
               name="location"
@@ -209,7 +303,6 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="preferred_date"
@@ -221,8 +314,9 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                       <FormControl>
                         <Button
                           variant={"outline"}
+                          variant={"outline"}
                           className={cn(
-                            "w-full pl-3 text-left font-normal",
+                            "w-full sm:w-[240px] pl-3 text-left font-normal",
                             !field.value && "text-muted-foreground"
                           )}
                         >
@@ -232,6 +326,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                             <span>Pick a date</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
@@ -240,7 +335,9 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => date < new Date()}
+                        disabled={(date) =>
+                          date < new Date()
+                        }
                         initialFocus
                       />
                     </PopoverContent>
@@ -249,8 +346,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 </FormItem>
               )}
             />
-
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-wrap gap-2">
               <FormField
                 control={form.control}
                 name="is_emergency"
@@ -293,24 +389,9 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 )}
               />
             </div>
-
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-              <Button 
-                type="submit" 
-                className="bg-donezo-blue hover:bg-donezo-blue/90"
-                disabled={createJobMutation.isPending}
-              >
-                {createJobMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Posting...
-                  </>
-                ) : (
-                  'Post Job'
-                )}
-              </Button>
-            </DialogFooter>
+            <Button type="submit" disabled={isSubmitting} className="w-full bg-donezo-blue hover:bg-donezo-blue/90">
+              {isSubmitting ? "Submitting..." : "Post Job"}
+            </Button>
           </form>
         </Form>
       </DialogContent>
