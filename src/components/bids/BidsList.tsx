@@ -5,14 +5,16 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { LinkIcon, ClockIcon, CheckCircle, XCircle, Info } from 'lucide-react';
+import { LinkIcon, ClockIcon, CheckCircle, XCircle, Info, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface BidsListProps {
   bids: Bid[];
+  showDetailedView?: boolean;
+  onAcceptBid?: (bid: Bid) => void;
 }
 
-const BidsList = ({ bids }: BidsListProps) => {
+const BidsList = ({ bids, showDetailedView = false, onAcceptBid }: BidsListProps) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -31,7 +33,11 @@ const BidsList = ({ bids }: BidsListProps) => {
       <div className="text-center py-12">
         <Info className="mx-auto h-12 w-12 text-gray-400" />
         <h3 className="mt-2 text-lg font-medium text-gray-900">No bids found</h3>
-        <p className="mt-1 text-sm text-gray-500">You haven't placed any bids yet.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          {showDetailedView 
+            ? "This job hasn't received any bids yet." 
+            : "You haven't placed any bids yet."}
+        </p>
       </div>
     );
   }
@@ -54,7 +60,7 @@ const BidsList = ({ bids }: BidsListProps) => {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <p className="text-sm text-gray-500">Your Bid</p>
+                <p className="text-sm text-gray-500">Bid Amount</p>
                 <p className="font-semibold">${bid.amount}</p>
               </div>
               {bid.estimated_hours && (
@@ -72,17 +78,59 @@ const BidsList = ({ bids }: BidsListProps) => {
             </div>
             {bid.description && (
               <div className="mt-3">
-                <p className="text-sm text-gray-500">Your Proposal</p>
+                <p className="text-sm text-gray-500">Proposal</p>
                 <p className="text-sm mt-1">{bid.description}</p>
               </div>
             )}
+
+            {showDetailedView && bid.provider && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-md">
+                <div className="flex items-center space-x-2">
+                  <div className="h-10 w-10 rounded-full bg-donezo-blue text-white flex items-center justify-center font-semibold">
+                    {bid.provider?.business_name?.charAt(0) || 
+                     bid.provider?.user?.user_metadata?.full_name?.charAt(0) || 'P'}
+                  </div>
+                  <div>
+                    <p className="font-medium">
+                      {bid.provider?.business_name || 
+                       bid.provider?.user?.user_metadata?.full_name || 'Service Provider'}
+                    </p>
+                    {bid.provider?.years_experience && (
+                      <p className="text-xs text-gray-500">
+                        {bid.provider.years_experience} years experience
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
-          <CardFooter className="pt-0">
-            <Link to={`/jobs/${bid.job_id}`} className="w-full">
-              <Button variant="outline" className="w-full">
-                <LinkIcon className="h-4 w-4 mr-2" /> View Job Details
-              </Button>
-            </Link>
+          <CardFooter className="flex justify-between pt-0">
+            {!showDetailedView ? (
+              <Link to={`/jobs/${bid.job_id}`} className="w-full">
+                <Button variant="outline" className="w-full">
+                  <LinkIcon className="h-4 w-4 mr-2" /> View Job Details
+                </Button>
+              </Link>
+            ) : (
+              <div className="flex w-full space-x-2">
+                {bid.provider && (
+                  <Link to={`/messages/${bid.provider_id}`} className="flex-1">
+                    <Button variant="outline" className="w-full">
+                      <MessageSquare className="h-4 w-4 mr-2" /> Message Provider
+                    </Button>
+                  </Link>
+                )}
+                {bid.status === 'pending' && onAcceptBid && (
+                  <Button 
+                    onClick={() => onAcceptBid(bid)} 
+                    className="flex-1 bg-donezo-teal hover:bg-donezo-teal/90"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" /> Accept Bid
+                  </Button>
+                )}
+              </div>
+            )}
           </CardFooter>
         </Card>
       ))}
