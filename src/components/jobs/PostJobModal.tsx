@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -71,8 +71,8 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
         ...values,
         customer_id: user.id,
         status: 'open',
-        // Convert the Date to string for the API
-        preferred_date: values.preferred_date ? values.preferred_date.toISOString() : undefined,
+        // Convert the Date object to ISO string for the API
+        preferred_date: values.preferred_date ? values.preferred_date.toISOString() : null,
       });
       form.reset();
       onClose();
@@ -83,7 +83,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold">Post a New Job</DialogTitle>
           <DialogDescription>
@@ -158,7 +158,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="budget_min"
@@ -252,7 +252,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="is_emergency"
@@ -260,9 +260,9 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel>Emergency Service</FormLabel>
-                      <FormDescription className="text-xs">
+                      <div className="text-xs text-muted-foreground">
                         Need help urgently?
-                      </FormDescription>
+                      </div>
                     </div>
                     <FormControl>
                       <Switch
@@ -281,9 +281,9 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel>Fix Now</FormLabel>
-                      <FormDescription className="text-xs">
+                      <div className="text-xs text-muted-foreground">
                         Priority service
-                      </FormDescription>
+                      </div>
                     </div>
                     <FormControl>
                       <Switch

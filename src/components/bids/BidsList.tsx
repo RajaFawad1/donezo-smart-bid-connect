@@ -39,7 +39,7 @@ const BidsList = ({ bids }: BidsListProps) => {
   return (
     <div className="space-y-4">
       {bids.map((bid) => (
-        <Card key={bid.id}>
+        <Card key={bid.id} className="overflow-hidden">
           <CardHeader className="pb-2">
             <div className="flex justify-between items-start">
               <div>
@@ -52,7 +52,7 @@ const BidsList = ({ bids }: BidsListProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-gray-500">Your Bid</p>
                 <p className="font-semibold">${bid.amount}</p>

@@ -37,13 +37,15 @@ export function useJobs() {
   };
 
   const getMyJobs = async (): Promise<Job[]> => {
-    const user = await supabase.auth.getUser();
-    const userId = user.data.user?.id;
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+    
+    if (!userId) return [];
     
     const { data, error } = await supabase
       .from('jobs')
       .select('*, category:service_categories(*), bids_count:bids(count)')
-      .eq('customer_id', userId || '')
+      .eq('customer_id', userId)
       .order('created_at', { ascending: false });
     
     if (error) throw error;
@@ -70,9 +72,14 @@ export function useJobs() {
   };
 
   const createJob = async (job: Partial<Job>): Promise<Job> => {
+    // Convert preferred_date from ISO string to Postgres timestamp format if it exists
+    const jobData = {
+      ...job,
+    };
+
     const { data, error } = await supabase
       .from('jobs')
-      .insert([job])
+      .insert([jobData])
       .select('*')
       .single();
     
