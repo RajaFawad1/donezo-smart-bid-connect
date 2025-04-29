@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertTriangle, Clock, CheckCircle, Info, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle, Info, MessageSquare,MapPin,Calendar } from 'lucide-react';
 import BidModal from '@/components/bids/BidModal';
 import JobDetailsModal from './JobDetailsModal';
 

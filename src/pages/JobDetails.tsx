@@ -1,10 +1,5 @@
 
-<<<<<<< HEAD
-
-import { useState, useEffect } from 'react';
-=======
 import { useState } from 'react';
->>>>>>> parent of 64793a0 (feat: Implement job bidding and AI description generation)
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJobs } from '@/hooks/useJobs';
