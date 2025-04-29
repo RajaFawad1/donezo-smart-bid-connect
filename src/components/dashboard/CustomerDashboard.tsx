@@ -24,14 +24,17 @@ const CustomerDashboard = () => {
   const { data: jobs = [], isLoading: jobsLoading, refetch: refetchJobs } = useMyJobs();
   const { data: contracts = [], isLoading: contractsLoading } = useMyContracts();
 
-  // Refetch jobs when component mounts
+  // Refetch jobs when component mounts and when modal closes
   useEffect(() => {
+    console.log("Fetching jobs for customer dashboard");
     refetchJobs();
   }, [refetchJobs]);
 
   const handleRefresh = () => {
+    console.log("Manually refreshing dashboard data");
     queryClient.invalidateQueries({ queryKey: ['myJobs'] });
     queryClient.invalidateQueries({ queryKey: ['myContracts'] });
+    refetchJobs();
   };
 
   // Count jobs by status
@@ -179,7 +182,14 @@ const CustomerDashboard = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-blue"></div>
             </div>
           ) : (
-            <JobsList jobs={jobs} />
+            <>
+              {jobs.length === 0 && (
+                <div className="text-center p-6 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">You haven't posted any jobs yet.</p>
+                </div>
+              )}
+              <JobsList jobs={jobs} />
+            </>
           )}
         </TabsContent>
         
@@ -199,8 +209,10 @@ const CustomerDashboard = () => {
         onClose={() => {
           setIsPostJobModalOpen(false);
           // Refresh jobs list when modal closes
+          console.log("Job modal closed, refreshing jobs");
           setTimeout(() => {
             refetchJobs();
+            queryClient.invalidateQueries({ queryKey: ['myJobs'] });
           }, 300);
         }} 
       />

@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Job, JobWithBids } from '@/types';
@@ -37,14 +36,14 @@ export function useJobs() {
   };
 
   const getMyJobs = async (): Promise<Job[]> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
     
     if (!userId) return [];
     
     const { data, error } = await supabase
       .from('jobs')
-      .select('*, category:service_categories(*), bids_count:bids(count)')
+      .select('*, category:service_categories(*)')
       .eq('customer_id', userId)
       .order('created_at', { ascending: false });
     
@@ -53,13 +52,7 @@ export function useJobs() {
       throw error;
     }
     
-    // Make sure data is defined before mapping
-    if (!data) return [];
-    
-    return data.map(job => ({
-      ...job,
-      bids_count: job.bids_count?.[0]?.count || 0
-    })) as Job[];
+    return data as Job[] || [];
   };
 
   const getOpenJobs = async (): Promise<Job[]> => {
@@ -138,6 +131,7 @@ export function useJobs() {
     return useMutation({
       mutationFn: createJob,
       onSuccess: () => {
+        // Invalidate all job-related queries to refresh data
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
         queryClient.invalidateQueries({ queryKey: ['myJobs'] });
         queryClient.invalidateQueries({ queryKey: ['openJobs'] });

@@ -43,7 +43,7 @@ const BidsList = ({ bids }: BidsListProps) => {
           <CardHeader className="pb-2">
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-lg">{bid.job?.title || 'Untitled Job'}</CardTitle>
+                <CardTitle className="text-lg">{bid.job_title || 'Untitled Job'}</CardTitle>
                 <p className="text-sm text-gray-500">
                   Bid placed {formatDistanceToNow(new Date(bid.created_at), { addSuffix: true })}
                 </p>
