@@ -48,11 +48,17 @@ export function useJobs() {
       .eq('customer_id', userId)
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching my jobs:", error);
+      throw error;
+    }
+    
+    // Make sure data is defined before mapping
+    if (!data) return [];
     
     return data.map(job => ({
       ...job,
-      bids_count: job.bids_count[0].count
+      bids_count: job.bids_count?.[0]?.count || 0
     })) as Job[];
   };
 
@@ -73,9 +79,7 @@ export function useJobs() {
 
   const createJob = async (job: Partial<Job>): Promise<Job> => {
     // Convert preferred_date from ISO string to Postgres timestamp format if it exists
-    const jobData = {
-      ...job,
-    };
+    const jobData = { ...job };
 
     const { data, error } = await supabase
       .from('jobs')
@@ -140,6 +144,7 @@ export function useJobs() {
         toast({ title: 'Job created successfully!' });
       },
       onError: (error: any) => {
+        console.error("Error creating job:", error);
         toast({ 
           title: 'Failed to create job', 
           description: error.message,

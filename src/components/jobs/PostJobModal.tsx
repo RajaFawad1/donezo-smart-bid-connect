@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { useJobs } from '@/hooks/useJobs';
 import { useCategories } from '@/hooks/useCategories';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters' }),
@@ -46,6 +47,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
   const { useCreateJob } = useJobs();
   const { useAllCategories } = useCategories();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: categories = [], isLoading: categoriesLoading } = useAllCategories();
   const createJobMutation = useCreateJob();
   
@@ -74,6 +76,10 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
         // Convert the Date object to ISO string for the API
         preferred_date: values.preferred_date ? values.preferred_date.toISOString() : null,
       });
+      
+      // Force refetch the jobs after creation
+      queryClient.invalidateQueries({ queryKey: ['myJobs'] });
+      
       form.reset();
       onClose();
     } catch (error) {
@@ -260,9 +266,9 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel>Emergency Service</FormLabel>
-                      <div className="text-xs text-muted-foreground">
+                      <FormDescription className="text-xs">
                         Need help urgently?
-                      </div>
+                      </FormDescription>
                     </div>
                     <FormControl>
                       <Switch
@@ -281,9 +287,9 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel>Fix Now</FormLabel>
-                      <div className="text-xs text-muted-foreground">
+                      <FormDescription className="text-xs">
                         Priority service
-                      </div>
+                      </FormDescription>
                     </div>
                     <FormControl>
                       <Switch

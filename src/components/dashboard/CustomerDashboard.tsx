@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJobs } from '@/hooks/useJobs';
@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { PlusCircle, Clock, CheckCircle, XCircle, RefreshCcw } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import PostJobModal from '@/components/jobs/PostJobModal';
 import JobsList from '@/components/jobs/JobsList';
 import ContractsList from '@/components/contracts/ContractsList';
@@ -18,9 +19,20 @@ const CustomerDashboard = () => {
   const { useMyJobs } = useJobs();
   const { useMyContracts } = useContracts();
   const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  const { data: jobs = [], isLoading: jobsLoading } = useMyJobs();
+  const { data: jobs = [], isLoading: jobsLoading, refetch: refetchJobs } = useMyJobs();
   const { data: contracts = [], isLoading: contractsLoading } = useMyContracts();
+
+  // Refetch jobs when component mounts
+  useEffect(() => {
+    refetchJobs();
+  }, [refetchJobs]);
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['myJobs'] });
+    queryClient.invalidateQueries({ queryKey: ['myContracts'] });
+  };
 
   // Count jobs by status
   const openJobsCount = jobs.filter(job => job.status === 'open').length;
@@ -29,11 +41,21 @@ const CustomerDashboard = () => {
   
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-lg text-gray-500">
-          Welcome back, {user?.user_metadata?.full_name || 'User'}!
-        </p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-lg text-gray-500">
+            Welcome back, {user?.user_metadata?.full_name || 'User'}!
+          </p>
+        </div>
+        <Button 
+          onClick={handleRefresh}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <RefreshCcw className="h-4 w-4" /> Refresh
+        </Button>
       </div>
       
       {/* Stats Cards */}
@@ -106,6 +128,7 @@ const CustomerDashboard = () => {
             <Button 
               onClick={() => setIsPostJobModalOpen(true)} 
               className="w-full bg-donezo-blue hover:bg-donezo-blue/90"
+              id="post-job-button"
             >
               <PlusCircle className="mr-2 h-4 w-4" /> Create Job
             </Button>
@@ -173,7 +196,13 @@ const CustomerDashboard = () => {
 
       <PostJobModal 
         isOpen={isPostJobModalOpen} 
-        onClose={() => setIsPostJobModalOpen(false)} 
+        onClose={() => {
+          setIsPostJobModalOpen(false);
+          // Refresh jobs list when modal closes
+          setTimeout(() => {
+            refetchJobs();
+          }, 300);
+        }} 
       />
     </div>
   );
