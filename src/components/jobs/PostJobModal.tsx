@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -42,12 +41,26 @@ interface PostJobModalProps {
   onClose: () => void;
 }
 
+interface Category {
+  id: string;
+  name: string;
+
+}
+
 const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
   const { useCreateJob } = useJobs();
   const { useAllCategories } = useCategories();
   const { user } = useAuth();
-  const { data: categories = [], isLoading: categoriesLoading } = useAllCategories();
+  const { data: fetchedCategories = [], isLoading: categoriesLoading } = useAllCategories();
+  const [categories, setCategories] = useState<Category[]>([]);
   const createJobMutation = useCreateJob();
+  
+  // Set categories when fetched
+  useEffect(() => {
+    if (fetchedCategories.length > 0) {
+      setCategories(fetchedCategories);
+    }
+  }, [fetchedCategories]);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -64,35 +77,55 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
   });
 
   const onSubmit = async (values: FormValues) => {
-    if (!user) return;
+    if (!user) {
+      console.error('No user logged in');
+      return;
+    }
     
+    // Validate category exists
+    const selectedCategory = categories.find(c => c.id === values.category_id);
+    if (!selectedCategory) {
+      form.setError('category_id', { message: 'Please select a valid category' });
+      return;
+    }
+
     try {
-      await createJobMutation.mutateAsync({
+      const jobData = {
         ...values,
+        preferred_date: values.preferred_date ? values.preferred_date.toISOString() : undefined,
         customer_id: user.id,
         status: 'open',
-        // Convert the Date to string for the API
-        preferred_date: values.preferred_date ? values.preferred_date.toISOString() : undefined,
-      });
+      };
+      
+      await createJobMutation.mutateAsync(jobData);
       form.reset();
       onClose();
     } catch (error) {
       console.error('Error creating job:', error);
+      form.setError('root', { 
+        message: 'Failed to create job. Please try again.' 
+      });
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="w-[95%] max-w-[550px] md:w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-semibold">Post a New Job</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-xl md:text-2xl font-semibold">Post a New Job</DialogTitle>
+          <DialogDescription className="text-sm md:text-base">
             Fill out the details below to create a new job and get bids from service providers.
           </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {form.formState.errors.root && (
+              <div className="text-red-500 text-sm">
+                {form.formState.errors.root.message}
+              </div>
+            )}
+
             <FormField
               control={form.control}
               name="title"
@@ -116,7 +149,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                   <FormControl>
                     <Textarea 
                       placeholder="Describe your job in detail..." 
-                      className="min-h-[100px]" 
+                      className="min-h-[80px] md:min-h-[100px]" 
                       {...field} 
                     />
                   </FormControl>
@@ -134,19 +167,25 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                   <Select 
                     onValueChange={field.onChange} 
                     defaultValue={field.value}
-                    disabled={categoriesLoading}
+                    disabled={categoriesLoading || categories.length === 0}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
+                        <SelectValue placeholder={
+                          categoriesLoading ? "Loading categories..." : 
+                          categories.length === 0 ? "No categories available" : "Select a category"
+                        } />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       {categoriesLoading ? (
-                        <SelectItem value="loading" disabled>Loading...</SelectItem>
+                        <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                      ) : categories.length === 0 ? (
+                        <SelectItem value="empty" disabled>No categories available</SelectItem>
                       ) : (
                         categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
+                           
                             {category.name}
                           </SelectItem>
                         ))
@@ -158,7 +197,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="budget_min"
@@ -252,7 +291,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="is_emergency"
@@ -296,12 +335,12 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
               />
             </div>
 
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <DialogFooter className="pt-4 flex-col sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">Cancel</Button>
               <Button 
                 type="submit" 
-                className="bg-donezo-blue hover:bg-donezo-blue/90"
-                disabled={createJobMutation.isPending}
+                className="bg-donezo-blue hover:bg-donezo-blue/90 w-full sm:w-auto"
+                disabled={createJobMutation.isPending || categories.length === 0}
               >
                 {createJobMutation.isPending ? (
                   <>
