@@ -1,89 +1,156 @@
-import { useState, useEffect } from 'react';
+
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import * as z from 'zod';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { CalendarIcon, Loader2 } from 'lucide-react';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import { useJobs } from '@/hooks/useJobs';
 import { useCategories } from '@/hooks/useCategories';
-import { supabase } from '@/lib/supabase';
-import { Job } from '@/types';
-import { useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/components/ui/use-toast';
+import { Loader2, Sparkles } from 'lucide-react';
+import { Switch } from "@/components/ui/switch";
 
 const formSchema = z.object({
-  title: z.string().min(5, { message: 'Title must be at least 5 characters' }),
-  description: z.string().min(20, { message: 'Description must be at least 20 characters' }),
-  category_id: z.string().min(1, { message: 'Please select a category' }),
-  budget_min: z.number().min(5, { message: 'Minimum budget must be at least $5' }),
-  budget_max: z.number().min(5, { message: 'Maximum budget must be at least $5' }),
-  location: z.string().min(3, { message: 'Please enter a valid location' }),
+  title: z.string().min(3, {
+    message: "Title must be at least 3 characters.",
+  }),
+  description: z.string().min(10, {
+    message: "Description must be at least 10 characters.",
+  }),
+  category_id: z.string().min(1, {
+    message: "Please select a category.",
+  }),
+  budget_min: z.number().min(1, {
+    message: "Minimum budget must be at least $1.",
+  }),
+  budget_max: z.number().min(1, {
+    message: "Maximum budget must be at least $1.",
+  }),
+  location: z.string().min(3, {
+    message: "Location must be at least 3 characters.",
+  }),
   preferred_date: z.date().optional(),
   is_emergency: z.boolean().default(false).optional(),
   is_fix_now: z.boolean().default(false).optional(),
+  use_ai_description: z.boolean().default(false).optional(),
 });
 
-interface PostJobModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
+const PostJobModal = ({ isOpen, onClose }) => {
   const { toast } = useToast();
   const { useCreateJob } = useJobs();
   const { useAllCategories } = useCategories();
   const { data: categories, isLoading: categoriesLoading } = useAllCategories();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [useAiDescription, setUseAiDescription] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const { mutate: createJob } = useCreateJob();
-  const queryClient = useQueryClient();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: '',
-      description: '',
-      category_id: '',
-      budget_min: 5,
-      budget_max: 100,
-      location: '',
+      title: "",
+      description: "",
+      category_id: "",
+      budget_min: 50,
+      budget_max: 200,
+      location: "",
       preferred_date: undefined,
       is_emergency: false,
       is_fix_now: false,
-    },
+      use_ai_description: false,
+    }
   });
 
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+  const generateDescription = async () => {
+    const title = form.getValues('title');
+    const categoryId = form.getValues('category_id');
+    const budgetMin = form.getValues('budget_min');
+    const budgetMax = form.getValues('budget_max');
+    const location = form.getValues('location');
+    
+    if (!title) {
+      toast({
+        title: "Title required",
+        description: "Please enter a job title first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsGeneratingDescription(true);
+      
+      // Find the category name
+      const categoryName = categories?.find(cat => cat.id === categoryId)?.name || '';
+      
+      const response = await fetch(`${window.location.origin}/functions/v1/generate-job-description`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          jobTitle: title,
+          category: categoryName,
+          budget: `${budgetMin}-${budgetMax}`,
+          location: location
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate description');
+      }
+
+      const data = await response.json();
+      form.setValue('description', data.description);
+      
+      toast({
+        title: "Description generated!",
+        description: "AI has created a job description based on your details."
+      });
+    } catch (error) {
+      console.error("Error generating description:", error);
+      toast({
+        title: "Failed to generate description",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
+  const onSubmit = async (data) => {
     try {
       setIsSubmitting(true);
-      
       // Get current user
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
-      
       if (!userId) {
         toast({
           title: "Authentication error",
           description: "You must be logged in to post a job.",
-          variant: "destructive",
+          variant: "destructive"
         });
         return;
       }
-      
+
       // Format preferred date as ISO string if it exists
-      const formattedDate = data.preferred_date ? new Date(data.preferred_date).toISOString() : undefined;
-      
-      // Create job with the right customer_id and explicitly typed status
-      const jobData: Partial<Job> = {
+      const formattedDate = data.preferred_date ? new Date(data.preferred_date).toISOString() : null;
+
+      // Create job with the right customer_id
+      const jobData = {
         customer_id: userId,
         status: "open",
         title: data.title,
@@ -94,29 +161,20 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
         location: data.location,
         preferred_date: formattedDate,
         is_emergency: data.is_emergency,
-        is_fix_now: data.is_fix_now,
+        is_fix_now: data.is_fix_now
       };
-      
+
       await createJob(jobData);
-      
-      // Immediately invalidate queries to refresh job lists
-      queryClient.invalidateQueries({ queryKey: ['myJobs'] });
       
       // Close modal and reset form
       form.reset();
       onClose();
-      
-      toast({
-        title: "Job created successfully",
-        description: "Your job has been posted and is now visible to service providers.",
-      });
-      
     } catch (error) {
       console.error("Error creating job:", error);
       toast({
         title: "Error creating job",
         description: error instanceof Error ? error.message : "An unexpected error occurred",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -125,13 +183,14 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95%] max-w-[550px] md:w-full max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle className="text-xl md:text-2xl font-semibold">Post a New Job</DialogTitle>
-          <DialogDescription className="text-sm md:text-base">
-            Fill out the details below to create a new job and get bids from service providers.
+          <DialogTitle>Post a New Job</DialogTitle>
+          <DialogDescription>
+            Create a new job posting for service providers to bid on.
           </DialogDescription>
         </DialogHeader>
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -147,51 +206,24 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Job Description</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Describe your job in detail..." 
-                      className="min-h-[80px] md:min-h-[100px]" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+            
             <FormField
               control={form.control}
               name="category_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                    disabled={categoriesLoading || !categories || categories.length === 0}
-                  >
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={
-                          categoriesLoading ? "Loading categories..." : 
-                          (!categories || categories.length === 0) ? "No categories available" : "Select a category"
-                        } />
+                        <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="max-h-[300px]">
+                    <SelectContent>
                       {categoriesLoading ? (
                         <SelectItem value="loading" disabled>Loading categories...</SelectItem>
-                      ) : (!categories || categories.length === 0) ? (
-                        <SelectItem value="empty" disabled>No categories available</SelectItem>
                       ) : (
-                        categories.map((category) => (
+                        categories?.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
                           </SelectItem>
@@ -203,39 +235,91 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 </FormItem>
               )}
             />
+            
+            <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-md border">
+              <div className="flex-grow">
+                <h4 className="text-sm font-medium">Use AI to generate description</h4>
+                <p className="text-xs text-gray-500">Let AI create a professional job description based on your details</p>
+              </div>
+              <Switch
+                checked={useAiDescription}
+                onCheckedChange={(checked) => {
+                  setUseAiDescription(checked);
+                  form.setValue('use_ai_description', checked);
+                }}
+              />
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex justify-between items-center">
+                    <FormLabel>Job Description</FormLabel>
+                    {useAiDescription && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={generateDescription}
+                        disabled={isGeneratingDescription}
+                        className="flex items-center gap-1"
+                      >
+                        {isGeneratingDescription ? (
+                          <><Loader2 className="h-3 w-3 animate-spin" /> Generating...</>
+                        ) : (
+                          <><Sparkles className="h-3 w-3" /> Generate with AI</>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Enter job description" 
+                      className="resize-none min-h-[150px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Describe the job in detail, including scope and requirements.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex space-x-2">
               <FormField
                 control={form.control}
                 name="budget_min"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Min Budget ($)</FormLabel>
+                  <FormItem className="w-1/2">
+                    <FormLabel>Budget Min</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
-                        {...field} 
-                        onChange={e => field.onChange(Number(e.target.value))} 
-                        min={5}
+                        placeholder="Minimum budget"
+                        {...field}
+                        onChange={e => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="budget_max"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Max Budget ($)</FormLabel>
+                  <FormItem className="w-1/2">
+                    <FormLabel>Budget Max</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
-                        {...field} 
-                        onChange={e => field.onChange(Number(e.target.value))} 
-                        min={form.watch('budget_min')}
+                        placeholder="Maximum budget"
+                        {...field}
+                        onChange={e => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -251,7 +335,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 <FormItem>
                   <FormLabel>Location</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. 123 Main St, Anytown, USA" {...field} />
+                    <Input placeholder="Enter location" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -263,14 +347,14 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
               name="preferred_date"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Preferred Date (Optional)</FormLabel>
+                  <FormLabel>Preferred Date</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
-                          variant={"outline"}
+                          variant="outline"
                           className={cn(
-                            "w-full sm:w-[240px] pl-3 text-left font-normal",
+                            "w-full pl-3 text-left font-normal",
                             !field.value && "text-muted-foreground"
                           )}
                         >
@@ -279,7 +363,23 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                           ) : (
                             <span>Pick a date</span>
                           )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                            className="ml-auto h-4 w-4 opacity-50"
+                          >
+                            <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                            <line x1="16" x2="16" y1="2" y2="6" />
+                            <line x1="8" x2="8" y1="2" y2="6" />
+                            <line x1="3" x2="21" y1="10" y2="10" />
+                          </svg>
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
@@ -293,74 +393,54 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                       />
                     </PopoverContent>
                   </Popover>
+                  <FormDescription>
+                    Choose a preferred date for the job.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex space-x-2">
               <FormField
                 control={form.control}
                 name="is_emergency"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel>Emergency Service</FormLabel>
-                      <FormDescription className="text-xs">
-                        Need help urgently?
-                      </FormDescription>
-                    </div>
+                  <FormItem className="flex flex-row items-center space-x-2 rounded-md border p-2">
                     <FormControl>
-                      <Switch
+                      <Checkbox
                         checked={field.value}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
+                    <FormLabel className="text-sm font-normal">Emergency</FormLabel>
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="is_fix_now"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel>Fix Now</FormLabel>
-                      <FormDescription className="text-xs">
-                        Priority service
-                      </FormDescription>
-                    </div>
+                  <FormItem className="flex flex-row items-center space-x-2 rounded-md border p-2">
                     <FormControl>
-                      <Switch
+                      <Checkbox
                         checked={field.value}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
+                    <FormLabel className="text-sm font-normal">Fix Now</FormLabel>
                   </FormItem>
                 )}
               />
             </div>
 
-            <DialogFooter className="pt-4 flex-col sm:flex-row gap-2">
-              <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                className="bg-donezo-blue hover:bg-donezo-blue/90 w-full sm:w-auto"
-                disabled={isSubmitting || !categories || categories.length === 0}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Posting...
-                  </>
-                ) : (
-                  'Post Job'
-                )}
-              </Button>
-            </DialogFooter>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="w-full bg-donezo-blue hover:bg-donezo-blue/90"
+            >
+              {isSubmitting ? "Submitting..." : "Post Job"}
+            </Button>
           </form>
         </Form>
       </DialogContent>

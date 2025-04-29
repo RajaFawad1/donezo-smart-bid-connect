@@ -1,6 +1,5 @@
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -26,7 +25,6 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
   
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate(); // Initialize the navigate function
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,14 +37,12 @@ const AuthModal = ({ isOpen, onClose, initialView = 'login' }: AuthModalProps) =
           title: "Login successful",
           description: "Welcome back to Donezo!",
         });
-        navigate('/dashboard'); // Redirect to dashboard after login
       } else {
         await signUp(email, password, name, userType);
         toast({
           title: "Account created",
           description: "Please check your email to verify your account.",
         });
-        navigate('/onboarding'); // Redirect to onboarding after signup
       }
       onClose();
     } catch (error: any) {

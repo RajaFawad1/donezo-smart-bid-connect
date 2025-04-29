@@ -24,6 +24,17 @@ export function useBids() {
     return data as Bid[];
   };
 
+  const getBidsByJobId = async (jobId: string): Promise<Bid[]> => {
+    const { data, error } = await supabase
+      .from('bids')
+      .select('*, provider:provider_id(*)')
+      .eq('job_id', jobId)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data as Bid[];
+  };
+
   const createBid = async (bid: Partial<Bid>): Promise<Bid> => {
     const { data, error } = await supabase
       .from('bids')
@@ -55,12 +66,21 @@ export function useBids() {
     });
   };
 
+  const useBidsByJobId = (jobId: string | undefined) => {
+    return useQuery({
+      queryKey: ['bids', jobId],
+      queryFn: () => jobId ? getBidsByJobId(jobId) : Promise.resolve([]),
+      enabled: !!jobId,
+    });
+  };
+
   // Mutations
   const useCreateBid = () => {
     return useMutation({
       mutationFn: createBid,
       onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: ['myBids'] });
+        queryClient.invalidateQueries({ queryKey: ['bids', data.job_id] });
         queryClient.invalidateQueries({ queryKey: ['job', data.job_id] });
         toast({ title: 'Bid submitted successfully!' });
       },
@@ -79,6 +99,7 @@ export function useBids() {
       mutationFn: updateBid,
       onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: ['myBids'] });
+        queryClient.invalidateQueries({ queryKey: ['bids', data.job_id] });
         queryClient.invalidateQueries({ queryKey: ['job', data.job_id] });
         toast({ title: 'Bid updated successfully!' });
       },
@@ -94,6 +115,7 @@ export function useBids() {
 
   return {
     useMyBids,
+    useBidsByJobId,
     useCreateBid,
     useUpdateBid,
   };
