@@ -37,6 +37,7 @@ export interface Bid {
   created_at: string;
   updated_at: string;
   provider?: ServiceProvider;
+  job?: Job;
 }
 
 export interface ServiceCategory {
@@ -85,7 +86,7 @@ export interface Contract {
   provider_id: string;
   amount: number;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-  payment_status: 'not_paid' | 'paid' | 'refunded';
+  payment_status: 'not_paid' | 'paid' | 'refunded' | 'in_escrow';
   start_date: string | null;
   end_date: string | null;
   created_at: string;

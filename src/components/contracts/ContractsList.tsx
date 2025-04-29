@@ -1,17 +1,63 @@
 
+import { useState } from 'react';
 import { Contract } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { useContracts } from '@/hooks/useContracts';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from '@/components/ui/alert-dialog';
 import { formatDistanceToNow } from 'date-fns';
-import { LinkIcon, Clock, CheckCircle, XCircle, Info, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { 
+  LinkIcon, 
+  MessageSquare, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  Info,
+  Loader2,
+  Wallet
+} from 'lucide-react';
 
 interface ContractsListProps {
   contracts: Contract[];
 }
 
 const ContractsList = ({ contracts }: ContractsListProps) => {
+  const { user } = useAuth();
+  const { useReleasePayment } = useContracts();
+  const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const releasePaymentMutation = useReleasePayment();
+
+  const handleReleasePayment = (contractId: string) => {
+    setSelectedContractId(contractId);
+    setReleaseDialogOpen(true);
+  };
+
+  const confirmReleasePayment = async () => {
+    if (selectedContractId) {
+      try {
+        await releasePaymentMutation.mutateAsync(selectedContractId);
+      } catch (error) {
+        console.error('Error releasing payment:', error);
+      } finally {
+        setReleaseDialogOpen(false);
+        setSelectedContractId(null);
+      }
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -30,7 +76,7 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'not_paid':
-        return <Badge variant="outline" className="bg-orange-100 text-orange-800 hover:bg-orange-100">Not Paid</Badge>;
+        return <Badge variant="outline" className="bg-orange-100 text-orange-800 hover:bg-orange-100">In Escrow</Badge>;
       case 'paid':
         return <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-100">Paid</Badge>;
       case 'refunded':
@@ -51,63 +97,113 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
   }
 
   return (
-    <div className="space-y-4">
-      {contracts.map((contract) => (
-        <Card key={contract.id}>
-          <CardHeader className="pb-2">
-            <div className="flex justify-between items-start">
-              <CardTitle className="text-lg">{contract.job?.title || 'Contract'}</CardTitle>
-              <div className="flex space-x-2">
-                {getStatusBadge(contract.status)}
-                {getPaymentStatusBadge(contract.payment_status)}
-              </div>
-            </div>
-            <p className="text-sm text-gray-500">
-              Created {formatDistanceToNow(new Date(contract.created_at), { addSuffix: true })}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Contract Amount</p>
-                <p className="font-semibold">${contract.amount}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Status</p>
-                <p className="font-semibold capitalize">{contract.status.replace('_', ' ')}</p>
-              </div>
-            </div>
-            
-            {contract.start_date && (
-              <div className="mt-3 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Start Date</p>
-                  <p className="font-medium">{new Date(contract.start_date).toLocaleDateString()}</p>
+    <>
+      <div className="space-y-4">
+        {contracts.map((contract) => (
+          <Card key={contract.id}>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-lg">{contract.job?.title || 'Contract'}</CardTitle>
+                <div className="flex space-x-2">
+                  {getStatusBadge(contract.status)}
+                  {getPaymentStatusBadge(contract.payment_status)}
                 </div>
-                {contract.end_date && (
-                  <div>
-                    <p className="text-sm text-gray-500">End Date</p>
-                    <p className="font-medium">{new Date(contract.end_date).toLocaleDateString()}</p>
-                  </div>
-                )}
               </div>
-            )}
-          </CardContent>
-          <CardFooter className="flex justify-between pt-0">
-            <Link to={`/jobs/${contract.job_id}`} className="w-1/2 pr-1">
-              <Button variant="outline" className="w-full">
-                <LinkIcon className="h-4 w-4 mr-2" /> Job Details
-              </Button>
-            </Link>
-            <Link to={`/messages`} className="w-1/2 pl-1">
-              <Button className="w-full bg-donezo-blue hover:bg-donezo-blue/90">
-                <MessageSquare className="h-4 w-4 mr-2" /> Message
-              </Button>
-            </Link>
-          </CardFooter>
-        </Card>
-      ))}
-    </div>
+              <p className="text-sm text-gray-500">
+                Created {formatDistanceToNow(new Date(contract.created_at), { addSuffix: true })}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Contract Amount</p>
+                  <p className="font-semibold">${contract.amount}</p>
+                  {contract.payment_status === 'not_paid' && contract.status !== 'completed' && (
+                    <p className="text-xs text-orange-600 mt-1">
+                      Amount held in escrow until job completion
+                    </p>
+                  )}
+                  {contract.payment_status === 'paid' && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Payment released (10% platform fee applied)
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <p className="font-semibold capitalize">{contract.status.replace('_', ' ')}</p>
+                </div>
+              </div>
+              
+              {contract.start_date && (
+                <div className="mt-3 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Start Date</p>
+                    <p className="font-medium">{new Date(contract.start_date).toLocaleDateString()}</p>
+                  </div>
+                  {contract.end_date && (
+                    <div>
+                      <p className="text-sm text-gray-500">End Date</p>
+                      <p className="font-medium">{new Date(contract.end_date).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="flex flex-wrap gap-2 pt-0">
+              <Link to={`/jobs/${contract.job_id}`} className="flex-1 min-w-[120px]">
+                <Button variant="outline" className="w-full">
+                  <LinkIcon className="h-4 w-4 mr-2" /> Job Details
+                </Button>
+              </Link>
+              <Link to={`/messages/${contract.customer_id === user?.id ? contract.provider_id : contract.customer_id}`} className="flex-1 min-w-[120px]">
+                <Button className="w-full bg-donezo-blue hover:bg-donezo-blue/90">
+                  <MessageSquare className="h-4 w-4 mr-2" /> Message
+                </Button>
+              </Link>
+              {/* Show release payment button for customers when contract is in_progress and payment is in escrow */}
+              {user?.id === contract.customer_id && 
+                contract.status === 'in_progress' && 
+                contract.payment_status === 'not_paid' && (
+                <Button 
+                  className="flex-1 min-w-[120px] bg-donezo-teal hover:bg-donezo-teal/90"
+                  onClick={() => handleReleasePayment(contract.id)}
+                  disabled={releasePaymentMutation.isPending}
+                >
+                  {releasePaymentMutation.isPending && selectedContractId === contract.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Wallet className="h-4 w-4 mr-2" /> Release Payment
+                    </>
+                  )}
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+
+      <AlertDialog open={releaseDialogOpen} onOpenChange={setReleaseDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Release Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to release payment for this job? This will send the payment to the service provider (minus 10% platform fee) and mark the contract as complete. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmReleasePayment}>
+              Release Payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

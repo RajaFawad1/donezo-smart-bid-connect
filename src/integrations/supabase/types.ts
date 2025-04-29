@@ -9,7 +9,118 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      contracts: {
+        Row: {
+          bid_id: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          job_id: string | null
+          provider_id: string | null
+        }
+        Insert: {
+          bid_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          job_id?: string | null
+          provider_id?: string | null
+        }
+        Update: {
+          bid_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          job_id?: string | null
+          provider_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          budget_max: number | null
+          budget_min: number | null
+          category_id: string | null
+          created_at: string
+          customer_id: string | null
+          description: string | null
+          id: string
+          is_emergency: boolean | null
+          is_fix_now: boolean | null
+          location: string | null
+          preferred_date: string | null
+          status: string
+          title: string | null
+        }
+        Insert: {
+          budget_max?: number | null
+          budget_min?: number | null
+          category_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          is_emergency?: boolean | null
+          is_fix_now?: boolean | null
+          location?: string | null
+          preferred_date?: string | null
+          status: string
+          title?: string | null
+        }
+        Update: {
+          budget_max?: number | null
+          budget_min?: number | null
+          category_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          is_emergency?: boolean | null
+          is_fix_now?: boolean | null
+          location?: string | null
+          preferred_date?: string | null
+          status?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_categories: {
+        Row: {
+          created_at: string
+          emoji: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

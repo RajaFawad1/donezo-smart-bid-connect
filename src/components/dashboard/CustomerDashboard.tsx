@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJobs } from '@/hooks/useJobs';
@@ -7,7 +6,6 @@ import { useContracts } from '@/hooks/useContracts';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import PostJobModal from '@/components/jobs/PostJobModal';
 import JobsList from '@/components/jobs/JobsList';
@@ -18,14 +16,16 @@ const CustomerDashboard = () => {
   const { useMyJobs } = useJobs();
   const { useMyContracts } = useContracts();
   const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
+  
+  // Explicitly specify the initial value as an empty array
+  const { data: jobs = [], isLoading: jobsLoading } = useMyJobs() || { data: [], isLoading: true };
+  const { data: contracts = [], isLoading: contractsLoading } = useMyContracts() || { data: [], isLoading: true };
 
-  const { data: jobs = [], isLoading: jobsLoading } = useMyJobs();
-  const { data: contracts = [], isLoading: contractsLoading } = useMyContracts();
-
-  // Count jobs by status
-  const openJobsCount = jobs.filter(job => job.status === 'open').length;
-  const inProgressJobsCount = jobs.filter(job => job.status === 'in_progress').length;
-  const completedJobsCount = jobs.filter(job => job.status === 'completed').length;
+  // Count jobs by status - check if jobs is defined and has filter method
+  const openJobsCount = Array.isArray(jobs) ? jobs.filter(job => job.status === 'open').length : 0;
+  const inProgressJobsCount = Array.isArray(jobs) ? jobs.filter(job => job.status === 'in_progress').length : 0;
+  const completedJobsCount = Array.isArray(jobs) ? jobs.filter(job => job.status === 'completed').length : 0;
+  const totalJobsCount = Array.isArray(jobs) ? jobs.length : 0;
   
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -85,7 +85,7 @@ const CustomerDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Jobs</p>
-                <p className="text-3xl font-bold">{jobs.length}</p>
+                <p className="text-3xl font-bold">{totalJobsCount}</p>
               </div>
               <div className="p-2 bg-purple-100 rounded-full">
                 <CheckCircle className="h-6 w-6 text-purple-600" />
@@ -104,6 +104,7 @@ const CustomerDashboard = () => {
           </CardHeader>
           <CardFooter>
             <Button 
+              id="post-job-button"
               onClick={() => setIsPostJobModalOpen(true)} 
               className="w-full bg-donezo-blue hover:bg-donezo-blue/90"
             >
@@ -119,7 +120,7 @@ const CustomerDashboard = () => {
           </CardHeader>
           <CardFooter>
             <Button 
-              onClick={() => window.location.href = "#active-jobs"} 
+              onClick={() => document.getElementById("active-jobs")?.scrollIntoView({ behavior: 'smooth' })} 
               variant="outline" 
               className="w-full"
             >
@@ -156,7 +157,7 @@ const CustomerDashboard = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-blue"></div>
             </div>
           ) : (
-            <JobsList jobs={jobs} />
+            <JobsList jobs={Array.isArray(jobs) ? jobs : []} />
           )}
         </TabsContent>
         
@@ -166,7 +167,7 @@ const CustomerDashboard = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-blue"></div>
             </div>
           ) : (
-            <ContractsList contracts={contracts} />
+            <ContractsList contracts={Array.isArray(contracts) ? contracts : []} />
           )}
         </TabsContent>
       </Tabs>

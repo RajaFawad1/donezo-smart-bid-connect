@@ -74,23 +74,27 @@ export function useMessages() {
     // Combine and deduplicate conversations
     const uniqueUsers = new Map();
     
-    sent?.forEach(msg => {
-      if (!uniqueUsers.has(msg.receiver_id)) {
-        uniqueUsers.set(msg.receiver_id, {
-          id: msg.receiver_id,
-          name: msg.receiver?.user_metadata?.full_name || 'Unknown User'
-        });
-      }
-    });
+    if (sent) {
+      sent.forEach((msg: any) => {
+        if (!uniqueUsers.has(msg.receiver_id)) {
+          uniqueUsers.set(msg.receiver_id, {
+            id: msg.receiver_id,
+            name: msg.receiver?.user_metadata?.full_name || 'Unknown User'
+          });
+        }
+      });
+    }
     
-    received?.forEach(msg => {
-      if (!uniqueUsers.has(msg.sender_id)) {
-        uniqueUsers.set(msg.sender_id, {
-          id: msg.sender_id,
-          name: msg.sender?.user_metadata?.full_name || 'Unknown User'
-        });
-      }
-    });
+    if (received) {
+      received.forEach((msg: any) => {
+        if (!uniqueUsers.has(msg.sender_id)) {
+          uniqueUsers.set(msg.sender_id, {
+            id: msg.sender_id,
+            name: msg.sender?.user_metadata?.full_name || 'Unknown User'
+          });
+        }
+      });
+    }
     
     return Array.from(uniqueUsers.values());
   };
@@ -108,9 +112,9 @@ export function useMessages() {
     if (error) throw error;
     
     // Mark messages as read
-    const unreadMessages = data.filter(msg => 
+    const unreadMessages = data.filter((msg: any) => 
       msg.receiver_id === userId && !msg.is_read
-    ).map(msg => msg.id);
+    ).map((msg: any) => msg.id);
     
     if (unreadMessages.length > 0) {
       await supabase
