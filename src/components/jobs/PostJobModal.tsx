@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from "@/components/ui/checkbox"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon } from "@radix-ui/react-icons"
+import { CalendarIcon } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -36,6 +37,8 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { useJobs } from '@/hooks/useJobs';
 import { useCategories } from '@/hooks/useCategories';
+import { supabase } from '@/lib/supabase';
+import { Job } from '@/types';
 
 const formSchema = z.object({
   title: z.string().min(3, {
@@ -109,10 +112,10 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
       // Format preferred date as ISO string if it exists
       const formattedDate = data.preferred_date ? new Date(data.preferred_date).toISOString() : undefined;
       
-      // Create job with the right customer_id
-      const jobData = {
+      // Create job with the right customer_id and explicitly typed status
+      const jobData: Partial<Job> = {
         customer_id: userId,
-        status: "open",
+        status: "open" as "open" | "in_progress" | "completed" | "cancelled",
         title: data.title,
         description: data.description,
         category_id: data.category_id,
@@ -143,7 +146,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-w-[90%] w-full">
         <DialogHeader>
           <DialogTitle>Post a New Job</DialogTitle>
           <DialogDescription>
@@ -273,7 +276,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-[240px] pl-3 text-left font-normal",
+                            "w-full sm:w-[240px] pl-3 text-left font-normal",
                             !field.value && "text-muted-foreground"
                           )}
                         >
@@ -305,7 +308,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
                 </FormItem>
               )}
             />
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <FormField
                 control={form.control}
                 name="is_emergency"
