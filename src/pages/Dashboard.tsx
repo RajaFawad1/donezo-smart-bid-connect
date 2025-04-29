@@ -22,10 +22,7 @@ const Dashboard = () => {
       } else {
         // When user is authenticated, make sure to invalidate queries to fetch fresh data
         queryClient.invalidateQueries({ queryKey: ['myJobs'] });
-        queryClient.invalidateQueries({ queryKey: ['myBids'] });
         queryClient.invalidateQueries({ queryKey: ['myContracts'] });
-        queryClient.invalidateQueries({ queryKey: ['openJobs'] });
-        queryClient.invalidateQueries({ queryKey: ['bids'] });
         setIsInitialized(true);
       }
     }

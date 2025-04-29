@@ -1,15 +1,17 @@
 
+<<<<<<< HEAD
 
 import { useState, useEffect } from 'react';
+=======
+import { useState } from 'react';
+>>>>>>> parent of 64793a0 (feat: Implement job bidding and AI description generation)
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJobs } from '@/hooks/useJobs';
 import { useContracts } from '@/hooks/useContracts';
-import { useBids } from '@/hooks/useBids';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import BidModal from '@/components/bids/BidModal';
-import BidsList from '@/components/bids/BidsList';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,7 +38,6 @@ import {
   CheckCircle, 
   XCircle 
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
 const JobDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,20 +45,17 @@ const JobDetails = () => {
   const { user } = useAuth();
   const { useJobById } = useJobs();
   const { useCreateContract } = useContracts();
-  const { useBidsByJobId } = useBids();
   
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedBid, setSelectedBid] = useState<Bid | null>(null);
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
   
-  const { data: job, isLoading: jobLoading } = useJobById(jobId);
-  const { data: bids = [], isLoading: bidsLoading } = useBidsByJobId(jobId);
+  const { data: job, isLoading, isError } = useJobById(id);
   const createContractMutation = useCreateContract();
 
   const isCustomer = user?.id === job?.customer_id;
   const isProvider = user?.user_metadata?.user_type === 'provider';
-  const hasUserBidded = bids?.some(bid => bid.provider_id === user?.id);
+  const hasUserBidded = job?.bids?.some(bid => bid.provider_id === user?.id);
 
   const handleAcceptBid = (bid: Bid) => {
     setSelectedBid(bid);
@@ -68,11 +66,6 @@ const JobDetails = () => {
     if (!selectedBid || !job) return;
     
     try {
-      setPaymentProcessing(true);
-      
-      // Here we would integrate with a payment provider to place funds in escrow
-      // For now, we'll simulate the escrow by just creating the contract
-      
       await createContractMutation.mutateAsync({
         job_id: job.id,
         bid_id: selectedBid.id,
@@ -80,39 +73,15 @@ const JobDetails = () => {
         provider_id: selectedBid.provider_id,
         amount: selectedBid.amount,
         status: 'in_progress',
-        payment_status: 'in_escrow', // This indicates funds are in escrow
+        payment_status: 'not_paid',
         start_date: new Date().toISOString(),
       });
-      
-      // Update the job status to in_progress
-      await supabase
-        .from('jobs')
-        .update({ status: 'in_progress' })
-        .eq('id', job.id);
-        
-      // Update the bid status to accepted
-      await supabase
-        .from('bids')
-        .update({ status: 'accepted' })
-        .eq('id', selectedBid.id);
-      
-      // Update any other pending bids to rejected
-      await supabase
-        .from('bids')
-        .update({ status: 'rejected' })
-        .eq('job_id', job.id)
-        .neq('id', selectedBid.id)
-        .eq('status', 'pending');
-        
       setConfirmDialogOpen(false);
-      setPaymentProcessing(false);
-      
       // Redirect to dashboard after creating contract
       navigate('/dashboard');
     } catch (error) {
       console.error('Error creating contract:', error);
       setConfirmDialogOpen(false);
-      setPaymentProcessing(false);
     }
   };
 
@@ -131,7 +100,7 @@ const JobDetails = () => {
     }
   };
 
-  if (jobLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -143,7 +112,7 @@ const JobDetails = () => {
     );
   }
 
-  if (!job) {
+  if (isError || !job) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -246,27 +215,74 @@ const JobDetails = () => {
                 )}
               </Card>
               
-              {/* Bids section */}
-              {job.status !== 'cancelled' && (
+              {/* Bids section (for customers only or when job is completed) */}
+              {(isCustomer || job.status === 'completed') && job.bids && job.bids.length > 0 && (
                 <Card className="mt-6">
                   <CardHeader>
                     <CardTitle>Bids</CardTitle>
                     <CardDescription>
-                      {bids.length} service provider{bids.length !== 1 && 's'} bid on this job
+                      {job.bids.length} service provider{job.bids.length !== 1 && 's'} bid on this job
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {bidsLoading ? (
-                      <div className="flex justify-center p-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-blue"></div>
-                      </div>
-                    ) : (
-                      <BidsList 
-                        bids={bids} 
-                        showDetailedView={true}
-                        onAcceptBid={isCustomer && job.status === 'open' ? handleAcceptBid : undefined}
-                      />
-                    )}
+                  <CardContent className="space-y-4">
+                    {job.bids.map((bid) => (
+                      <Card key={bid.id} className="shadow-sm">
+                        <CardHeader className="py-3">
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center space-x-2">
+                              <div className="h-10 w-10 rounded-full bg-donezo-blue text-white flex items-center justify-center font-semibold">
+                                {bid.provider?.user?.user_metadata?.full_name?.charAt(0) || 'P'}
+                              </div>
+                              <div>
+                                <p className="font-semibold">
+                                  {bid.provider?.business_name || bid.provider?.user?.user_metadata?.full_name || 'Service Provider'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {bid.provider?.years_experience} years experience
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-lg">${bid.amount}</p>
+                              {bid.estimated_hours && (
+                                <p className="text-xs text-gray-500">
+                                  Est. {bid.estimated_hours} hours (${(bid.amount / bid.estimated_hours).toFixed(2)}/hr)
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        {bid.description && (
+                          <CardContent className="py-2">
+                            <p className="text-sm">{bid.description}</p>
+                          </CardContent>
+                        )}
+                        <CardFooter className="py-3 flex justify-between">
+                          <Link to={`/messages/${bid.provider_id}`}>
+                            <Button variant="outline" size="sm">
+                              <MessageSquare className="h-4 w-4 mr-2" /> Message
+                            </Button>
+                          </Link>
+                          
+                          {isCustomer && job.status === 'open' && bid.status === 'pending' && (
+                            <Button 
+                              className="bg-donezo-teal hover:bg-donezo-teal/90" 
+                              size="sm"
+                              onClick={() => handleAcceptBid(bid)}
+                            >
+                              <Check className="h-4 w-4 mr-2" /> Accept Bid
+                            </Button>
+                          )}
+                          
+                          {bid.status === 'accepted' && (
+                            <Badge className="bg-green-500">Accepted</Badge>
+                          )}
+                          {bid.status === 'rejected' && (
+                            <Badge variant="outline" className="bg-red-100 text-red-800">Rejected</Badge>
+                          )}
+                        </CardFooter>
+                      </Card>
+                    ))}
                   </CardContent>
                 </Card>
               )}
@@ -301,9 +317,9 @@ const JobDetails = () => {
                       <p>This job has been cancelled.</p>
                     )}
                     
-                    {bids && (
+                    {job.bids && (
                       <p className="mt-2">
-                        <span className="font-medium">{bids.length}</span> bid{bids.length !== 1 && 's'} received
+                        <span className="font-medium">{job.bids.length}</span> bid{job.bids.length !== 1 && 's'} received
                       </p>
                     )}
                   </div>
@@ -390,15 +406,15 @@ const JobDetails = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmAcceptBid}
-              disabled={paymentProcessing}
+              disabled={createContractMutation.isPending}
             >
-              {paymentProcessing ? (
+              {createContractMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing payment...
+                  Processing...
                 </>
               ) : (
-                "Accept Bid & Pay to Escrow"
+                "Accept Bid"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
