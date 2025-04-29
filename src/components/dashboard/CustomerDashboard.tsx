@@ -26,9 +26,10 @@ const CustomerDashboard = () => {
 
   // Refetch jobs when component mounts and when modal closes
   useEffect(() => {
-    console.log("Fetching jobs for customer dashboard");
+    console.log("Component mounted or dependencies changed - fetching jobs for customer dashboard");
+    queryClient.invalidateQueries({ queryKey: ['myJobs'] });
     refetchJobs();
-  }, [refetchJobs]);
+  }, [refetchJobs, queryClient]);
 
   const handleRefresh = () => {
     console.log("Manually refreshing dashboard data");
@@ -37,10 +38,22 @@ const CustomerDashboard = () => {
     refetchJobs();
   };
 
+  const handleJobModalClose = () => {
+    setIsPostJobModalOpen(false);
+    // Refresh jobs list when modal closes with a slight delay to allow DB to update
+    setTimeout(() => {
+      console.log("Job modal closed, refreshing jobs");
+      queryClient.invalidateQueries({ queryKey: ['myJobs'] });
+      refetchJobs();
+    }, 300);
+  };
+
   // Count jobs by status
-  const openJobsCount = jobs.filter(job => job.status === 'open').length;
-  const inProgressJobsCount = jobs.filter(job => job.status === 'in_progress').length;
-  const completedJobsCount = jobs.filter(job => job.status === 'completed').length;
+  const openJobsCount = jobs?.filter(job => job.status === 'open').length || 0;
+  const inProgressJobsCount = jobs?.filter(job => job.status === 'in_progress').length || 0;
+  const completedJobsCount = jobs?.filter(job => job.status === 'completed').length || 0;
+  
+  console.log("CustomerDashboard rendered with jobs:", jobs?.length);
   
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -110,7 +123,7 @@ const CustomerDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Jobs</p>
-                <p className="text-3xl font-bold">{jobs.length}</p>
+                <p className="text-3xl font-bold">{jobs?.length || 0}</p>
               </div>
               <div className="p-2 bg-purple-100 rounded-full">
                 <CheckCircle className="h-6 w-6 text-purple-600" />
@@ -183,12 +196,12 @@ const CustomerDashboard = () => {
             </div>
           ) : (
             <>
-              {jobs.length === 0 && (
+              {jobs?.length === 0 && (
                 <div className="text-center p-6 bg-gray-50 rounded-lg">
                   <p className="text-gray-500">You haven't posted any jobs yet.</p>
                 </div>
               )}
-              <JobsList jobs={jobs} />
+              <JobsList jobs={jobs || []} />
             </>
           )}
         </TabsContent>
@@ -206,15 +219,7 @@ const CustomerDashboard = () => {
 
       <PostJobModal 
         isOpen={isPostJobModalOpen} 
-        onClose={() => {
-          setIsPostJobModalOpen(false);
-          // Refresh jobs list when modal closes
-          console.log("Job modal closed, refreshing jobs");
-          setTimeout(() => {
-            refetchJobs();
-            queryClient.invalidateQueries({ queryKey: ['myJobs'] });
-          }, 300);
-        }} 
+        onClose={handleJobModalClose} 
       />
     </div>
   );

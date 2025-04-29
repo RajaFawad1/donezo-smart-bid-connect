@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Job, JobWithBids } from '@/types';
@@ -39,7 +40,12 @@ export function useJobs() {
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
-    if (!userId) return [];
+    if (!userId) {
+      console.log("No user ID found for getMyJobs");
+      return [];
+    }
+    
+    console.log("Fetching jobs for user:", userId);
     
     const { data, error } = await supabase
       .from('jobs')
@@ -52,6 +58,7 @@ export function useJobs() {
       throw error;
     }
     
+    console.log("Jobs fetched:", data?.length || 0);
     return data as Job[] || [];
   };
 
@@ -71,16 +78,34 @@ export function useJobs() {
   };
 
   const createJob = async (job: Partial<Job>): Promise<Job> => {
-    // Convert preferred_date from ISO string to Postgres timestamp format if it exists
-    const jobData = { ...job };
+    console.log("Creating job with data:", job);
+    
+    // Ensure the job has proper customer_id and status values
+    if (!job.customer_id) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) {
+        throw new Error("User must be logged in to create a job");
+      }
+      job.customer_id = userData.user.id;
+    }
+    
+    // Ensure status is set correctly
+    if (!job.status) {
+      job.status = "open";
+    }
 
     const { data, error } = await supabase
       .from('jobs')
-      .insert([jobData])
+      .insert([job])
       .select('*')
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error creating job:", error);
+      throw error;
+    }
+    
+    console.log("Job created successfully:", data);
     return data as Job;
   };
 
@@ -116,6 +141,8 @@ export function useJobs() {
     return useQuery({
       queryKey: ['myJobs'],
       queryFn: getMyJobs,
+      refetchOnWindowFocus: true,
+      staleTime: 1000 * 60, // 1 minute
     });
   };
 
@@ -130,7 +157,7 @@ export function useJobs() {
   const useCreateJob = () => {
     return useMutation({
       mutationFn: createJob,
-      onSuccess: () => {
+      onSuccess: (data) => {
         // Invalidate all job-related queries to refresh data
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
         queryClient.invalidateQueries({ queryKey: ['myJobs'] });

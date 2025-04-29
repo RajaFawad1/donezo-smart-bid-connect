@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +9,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Form,
@@ -39,6 +37,7 @@ import { useJobs } from '@/hooks/useJobs';
 import { useCategories } from '@/hooks/useCategories';
 import { supabase } from '@/lib/supabase';
 import { Job } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
 
 const formSchema = z.object({
   title: z.string().min(3, {
@@ -76,6 +75,7 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
   const { data: categories, isLoading: categoriesLoading } = useAllCategories();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { mutate: createJob } = useCreateJob();
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -127,11 +127,22 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
         is_fix_now: data.is_fix_now,
       };
       
+      console.log("Submitting job data:", jobData);
+      
       await createJob(jobData);
+      
+      // Immediately invalidate queries to refresh job lists
+      queryClient.invalidateQueries({ queryKey: ['myJobs'] });
       
       // Close modal and reset form
       form.reset();
       onClose();
+      
+      toast({
+        title: "Job created successfully",
+        description: "Your job has been posted and is now visible to service providers.",
+      });
+      
     } catch (error) {
       console.error("Error creating job:", error);
       toast({

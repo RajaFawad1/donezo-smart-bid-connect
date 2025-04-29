@@ -26,7 +26,7 @@ const BidsList = ({ bids }: BidsListProps) => {
     }
   };
 
-  if (bids.length === 0) {
+  if (!bids || bids.length === 0) {
     return (
       <div className="text-center py-12">
         <Info className="mx-auto h-12 w-12 text-gray-400" />
