@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -71,6 +71,8 @@ const PostJobModal = ({ isOpen, onClose }: PostJobModalProps) => {
         ...values,
         customer_id: user.id,
         status: 'open',
+        // Convert the Date to string for the API
+        preferred_date: values.preferred_date ? values.preferred_date.toISOString() : undefined,
       });
       form.reset();
       onClose();

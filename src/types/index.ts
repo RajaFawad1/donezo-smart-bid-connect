@@ -37,6 +37,7 @@ export interface Bid {
   created_at: string;
   updated_at: string;
   provider?: ServiceProvider;
+  job?: Job;
 }
 
 export interface ServiceCategory {

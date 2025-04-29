@@ -74,23 +74,27 @@ export function useMessages() {
     // Combine and deduplicate conversations
     const uniqueUsers = new Map();
     
-    sent?.forEach(msg => {
-      if (!uniqueUsers.has(msg.receiver_id)) {
-        uniqueUsers.set(msg.receiver_id, {
-          id: msg.receiver_id,
-          name: msg.receiver?.user_metadata?.full_name || 'Unknown User'
-        });
-      }
-    });
+    if (sent) {
+      sent.forEach(msg => {
+        if (!uniqueUsers.has(msg.receiver_id)) {
+          uniqueUsers.set(msg.receiver_id, {
+            id: msg.receiver_id,
+            name: msg.receiver?.user_metadata?.full_name || 'Unknown User'
+          });
+        }
+      });
+    }
     
-    received?.forEach(msg => {
-      if (!uniqueUsers.has(msg.sender_id)) {
-        uniqueUsers.set(msg.sender_id, {
-          id: msg.sender_id,
-          name: msg.sender?.user_metadata?.full_name || 'Unknown User'
-        });
-      }
-    });
+    if (received) {
+      received.forEach(msg => {
+        if (!uniqueUsers.has(msg.sender_id)) {
+          uniqueUsers.set(msg.sender_id, {
+            id: msg.sender_id,
+            name: msg.sender?.user_metadata?.full_name || 'Unknown User'
+          });
+        }
+      });
+    }
     
     return Array.from(uniqueUsers.values());
   };

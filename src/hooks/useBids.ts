@@ -9,10 +9,13 @@ export function useBids() {
   const queryClient = useQueryClient();
 
   const getMyBids = async (): Promise<Bid[]> => {
+    const user = supabase.auth.getUser();
+    const userId = (await user).data.user?.id;
+    
     const { data, error } = await supabase
       .from('bids')
       .select('*, job:job_id(*)')
-      .eq('provider_id', supabase.auth.getUser()?.id || '')
+      .eq('provider_id', userId || '')
       .order('created_at', { ascending: false });
     
     if (error) throw error;
