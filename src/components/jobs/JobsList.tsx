@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertTriangle, Clock, CheckCircle, Info, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle, Info, MessageSquare, MapPin } from 'lucide-react';
 import BidModal from '@/components/bids/BidModal';
 import JobDetailsModal from './JobDetailsModal';
 
@@ -108,7 +108,7 @@ const JobsList = ({ jobs, showBidButton = false }: JobsListProps) => {
               )}
               {job.location && (
                 <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
-                  Location: {job.location}
+                  <MapPin className="mr-1 h-3 w-3" /> {job.location}
                 </span>
               )}
               {job.preferred_date && (

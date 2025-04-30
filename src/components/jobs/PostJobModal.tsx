@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -145,14 +144,14 @@ const PostJobModal = ({ isOpen, onClose }) => {
         });
         return;
       }
-
+      
       // Format preferred date as ISO string if it exists
-      const formattedDate = data.preferred_date ? new Date(data.preferred_date).toISOString() : null;
-
+      const formattedDate = data.preferred_date ? new Date(data.preferred_date).toISOString() : undefined;
+      
       // Create job with the right customer_id
       const jobData = {
         customer_id: userId,
-        status: "open",
+        status: "open" as "open", // Explicitly type this as a literal type
         title: data.title,
         description: data.description,
         category_id: data.category_id,
@@ -163,7 +162,7 @@ const PostJobModal = ({ isOpen, onClose }) => {
         is_emergency: data.is_emergency,
         is_fix_now: data.is_fix_now
       };
-
+      
       await createJob(jobData);
       
       // Close modal and reset form
