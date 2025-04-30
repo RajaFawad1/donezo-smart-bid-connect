@@ -35,6 +35,7 @@ const BidModal = ({ isOpen, onClose, job }: BidModalProps) => {
   const { useCreateBid } = useBids();
   const { user } = useAuth();
   const createBidMutation = useCreateBid();
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -46,9 +47,14 @@ const BidModal = ({ isOpen, onClose, job }: BidModalProps) => {
   });
 
   const onSubmit = async (values: FormValues) => {
-    if (!user) return;
+    if (!user) {
+      setSubmissionError("You must be logged in to submit a bid");
+      return;
+    }
     
     try {
+      setSubmissionError(null);
+      
       await createBidMutation.mutateAsync({
         job_id: job.id,
         provider_id: user.id,
@@ -57,10 +63,13 @@ const BidModal = ({ isOpen, onClose, job }: BidModalProps) => {
         description: values.description,
         status: 'pending',
       });
+      
+      console.log("Bid submitted successfully");
       form.reset();
       onClose();
     } catch (error) {
       console.error('Error submitting bid:', error);
+      setSubmissionError("Failed to submit bid. Please try again later.");
     }
   };
 
@@ -84,6 +93,12 @@ const BidModal = ({ isOpen, onClose, job }: BidModalProps) => {
             <p className="font-medium">{job.category?.name}</p>
           </div>
         </div>
+        
+        {submissionError && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-md border border-red-200 mb-4">
+            {submissionError}
+          </div>
+        )}
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import CustomerDashboard from '@/components/dashboard/CustomerDashboard';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
 import { useQueryClient } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -77,6 +78,7 @@ const Dashboard = () => {
         )}
       </main>
       <Footer />
+      <Toaster />
     </div>
   );
 };

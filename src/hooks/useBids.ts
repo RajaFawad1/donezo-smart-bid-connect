@@ -36,13 +36,32 @@ export function useBids() {
   };
 
   const createBid = async (bid: Partial<Bid>): Promise<Bid> => {
+    console.log("Creating bid with data:", bid);
+    
+    if (!bid.job_id) {
+      throw new Error("Job ID is required");
+    }
+    
+    if (!bid.provider_id) {
+      throw new Error("Provider ID is required");
+    }
+    
     const { data, error } = await supabase
       .from('bids')
       .insert([bid])
       .select('*')
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase error creating bid:", error);
+      throw error;
+    }
+    
+    if (!data) {
+      throw new Error("Failed to create bid - no data returned");
+    }
+    
+    console.log("Bid created successfully:", data);
     return data as Bid;
   };
 
@@ -85,9 +104,10 @@ export function useBids() {
         toast({ title: 'Bid submitted successfully!' });
       },
       onError: (error: any) => {
+        console.error("Error in useCreateBid mutation:", error);
         toast({ 
           title: 'Failed to submit bid', 
-          description: error.message,
+          description: error.message || "Please try again",
           variant: 'destructive' 
         });
       },
