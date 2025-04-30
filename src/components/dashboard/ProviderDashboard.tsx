@@ -8,18 +8,22 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Clock, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import { Search, Clock, CheckCircle, XCircle, MessageSquare, RefreshCcw } from 'lucide-react';
 import BidsList from '@/components/bids/BidsList';
 import ContractsList from '@/components/contracts/ContractsList';
 import JobsList from '@/components/jobs/JobsList';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 const ProviderDashboard = () => {
   const { user } = useAuth();
   const { useOpenJobs } = useJobs();
   const { useMyBids } = useBids();
   const { useMyContracts } = useContracts();
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: openJobs = [], isLoading: openJobsLoading } = useOpenJobs();
+  const { data: openJobs = [], isLoading: openJobsLoading, refetch: refetchJobs } = useOpenJobs();
   const { data: myBids = [], isLoading: bidsLoading } = useMyBids();
   const { data: contracts = [], isLoading: contractsLoading } = useMyContracts();
 
@@ -31,13 +35,37 @@ const ProviderDashboard = () => {
   // Count active contracts
   const activeContractsCount = contracts.filter(contract => contract.status === 'in_progress').length;
   
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      console.log("Manually refreshing provider dashboard data");
+      await queryClient.invalidateQueries({ queryKey: ['openJobs'] });
+      await queryClient.invalidateQueries({ queryKey: ['myBids'] });
+      await queryClient.invalidateQueries({ queryKey: ['myContracts'] });
+      await refetchJobs();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
+  
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Provider Dashboard</h1>
-        <p className="mt-1 text-lg text-gray-500">
-          Welcome back, {user?.user_metadata?.full_name || 'Provider'}!
-        </p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Provider Dashboard</h1>
+          <p className="mt-1 text-lg text-gray-500">
+            Welcome back, {user?.user_metadata?.full_name || 'Provider'}!
+          </p>
+        </div>
+        <Button 
+          onClick={handleRefresh}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          disabled={isRefreshing}
+        >
+          <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
+        </Button>
       </div>
       
       {/* Stats Cards */}
@@ -104,7 +132,7 @@ const ProviderDashboard = () => {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle>Find New Jobs</CardTitle>
-            <CardDescription>Browse open job listings that match your skills</CardDescription>
+            <CardDescription>Browse job listings that match your skills</CardDescription>
           </CardHeader>
           <CardFooter>
             <Button 
@@ -148,7 +176,7 @@ const ProviderDashboard = () => {
       {/* Main Content Tabs */}
       <Tabs defaultValue="jobs" className="w-full" id="open-jobs">
         <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="jobs">Open Jobs</TabsTrigger>
+          <TabsTrigger value="jobs">Available Jobs</TabsTrigger>
           <TabsTrigger value="bids">My Bids</TabsTrigger>
           <TabsTrigger value="contracts">My Contracts</TabsTrigger>
         </TabsList>
@@ -159,7 +187,7 @@ const ProviderDashboard = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-blue"></div>
             </div>
           ) : (
-            <JobsList jobs={openJobs} showBidButton />
+            <JobsList jobs={openJobs} showBidButton={true} />
           )}
         </TabsContent>
         

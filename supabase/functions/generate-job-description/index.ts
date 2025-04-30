@@ -20,7 +20,21 @@ serve(async (req) => {
       throw new Error("Missing OPENAI_API_KEY environment variable");
     }
     
-    const { jobTitle, category, budget, location } = await req.json();
+    // Handle request body parsing safely
+    let body;
+    try {
+      body = await req.json();
+    } catch (error) {
+      console.error("Error parsing request body:", error);
+      throw new Error("Invalid JSON in request body");
+    }
+
+    const { jobTitle, category, budget, location } = body;
+
+    // Validate required parameters
+    if (!jobTitle) {
+      throw new Error("Missing required parameter: jobTitle");
+    }
 
     // Construct a prompt with the provided information
     const prompt = `Generate a detailed job description for a home service job.
@@ -56,7 +70,13 @@ The description should be professional, clear, and include details about what th
       throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (error) {
+      console.error("Error parsing OpenAI response:", error);
+      throw new Error("Invalid response from OpenAI API");
+    }
     
     if (data.error) {
       console.error("OpenAI API returned an error:", data.error);

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Job } from '@/types';
@@ -126,7 +125,7 @@ const JobsList = ({ jobs, showBidButton = false }: JobsListProps) => {
               <Info className="mr-2 h-4 w-4" /> View Details
             </Button>
             
-            {showBidButton && job.status === 'open' ? (
+            {showBidButton ? (
               <Button 
                 onClick={() => handleOpenBidModal(job)}
                 className="bg-donezo-teal hover:bg-donezo-teal/90"

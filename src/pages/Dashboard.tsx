@@ -22,17 +22,19 @@ const Dashboard = () => {
       } else {
         // When user is authenticated, make sure to invalidate queries to fetch fresh data
         console.log("Dashboard: Invalidating queries for fresh data");
-        queryClient.invalidateQueries({ queryKey: ['myJobs'] });
-        queryClient.invalidateQueries({ queryKey: ['myBids'] });
-        queryClient.invalidateQueries({ queryKey: ['myContracts'] });
-        queryClient.invalidateQueries({ queryKey: ['openJobs'] });
-        queryClient.invalidateQueries({ queryKey: ['bids'] });
+        // Force invalidate and refetch all data
+        queryClient.invalidateQueries();
         
-        // Force refetch
+        // Specifically refetch important data
         queryClient.refetchQueries({ queryKey: ['myJobs'] });
         queryClient.refetchQueries({ queryKey: ['openJobs'] });
+        queryClient.refetchQueries({ queryKey: ['myBids'] });
+        queryClient.refetchQueries({ queryKey: ['myContracts'] });
         
-        setIsInitialized(true);
+        setTimeout(() => {
+          // Set initialized after a small delay to ensure data has been fetched
+          setIsInitialized(true);
+        }, 300);
       }
     }
   }, [user, loading, navigate, queryClient]);

@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Job, JobWithBids } from '@/types';
@@ -9,11 +8,17 @@ export function useJobs() {
   const queryClient = useQueryClient();
 
   const getJobs = async (): Promise<Job[]> => {
+    console.log("Fetching all jobs");
     const { data, error } = await supabase
       .from('jobs')
-      .select('*, category:service_categories(*)');
+      .select('*, category:service_categories(*)')
+      .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching jobs:", error);
+      throw error;
+    }
+    console.log(`Fetched ${data?.length || 0} jobs`);
     return data as Job[];
   };
 
@@ -28,15 +33,16 @@ export function useJobs() {
           bids(*, provider:provider_id(*, user:id(id, email, user_metadata)))
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to prevent errors when no rows are found
       
       if (error) {
         console.error("Error fetching job with bids:", error);
-        if (error.code === 'PGRST116') {
-          console.log("No job found with ID:", id);
-          return null; // No rows returned
-        }
         throw error;
+      }
+      
+      if (!data) {
+        console.log("No job found with ID:", id);
+        return null;
       }
       
       console.log("Job details fetched successfully:", data?.id);
@@ -77,18 +83,18 @@ export function useJobs() {
     try {
       console.log("Fetching open jobs for providers");
       
+      // For providers, get ALL jobs (not just open ones) so they can see everything
       const { data, error } = await supabase
         .from('jobs')
         .select('*, category:service_categories(*), bids_count:bids(count)')
-        .eq('status', 'open')
         .order('created_at', { ascending: false });
       
       if (error) {
-        console.error("Error fetching open jobs:", error);
+        console.error("Error fetching jobs:", error);
         throw error;
       }
       
-      console.log(`Fetched ${data?.length || 0} open jobs`);
+      console.log(`Fetched ${data?.length || 0} jobs for provider`);
       
       return data.map(job => ({
         ...job,
@@ -157,6 +163,8 @@ export function useJobs() {
       queryKey: ['job', id],
       queryFn: () => id ? getJobWithBids(id) : Promise.resolve(null),
       enabled: !!id,
+      retry: 2, // Retry failed queries a couple times
+      refetchOnWindowFocus: true,
     });
   };
 
@@ -174,7 +182,7 @@ export function useJobs() {
       queryKey: ['openJobs'],
       queryFn: getOpenJobs,
       refetchOnWindowFocus: true,
-      staleTime: 1000 * 60, // 1 minute
+      staleTime: 1000 * 30, // 30 seconds
     });
   };
 
