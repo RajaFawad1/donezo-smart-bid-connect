@@ -16,6 +16,10 @@ serve(async (req) => {
   }
 
   try {
+    if (!openAIApiKey) {
+      throw new Error("Missing OPENAI_API_KEY environment variable");
+    }
+    
     const { jobTitle, category, budget, location } = await req.json();
 
     // Construct a prompt with the provided information
@@ -26,6 +30,8 @@ Budget: $${budget || '50-200'}
 Location: ${location || 'Local'}
 
 The description should be professional, clear, and include details about what the service provider should expect. Include any relevant information about scope of work, requirements, and expectations. Write in the first person, as if the customer is describing their needs.`;
+
+    console.log("Sending request to OpenAI API with prompt:", prompt);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -44,13 +50,21 @@ The description should be professional, clear, and include details about what th
       }),
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenAI API error:", response.status, errorText);
+      throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+    }
+
     const data = await response.json();
     
     if (data.error) {
+      console.error("OpenAI API returned an error:", data.error);
       throw new Error(`OpenAI API error: ${data.error.message}`);
     }
     
     const generatedDescription = data.choices[0].message.content;
+    console.log("Successfully generated description");
 
     return new Response(JSON.stringify({ description: generatedDescription }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

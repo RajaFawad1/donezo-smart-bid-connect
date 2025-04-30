@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -93,6 +94,13 @@ const PostJobModal = ({ isOpen, onClose }) => {
       // Find the category name
       const categoryName = categories?.find(cat => cat.id === categoryId)?.name || '';
       
+      console.log("Generating description for:", {
+        jobTitle: title,
+        category: categoryName,
+        budget: `${budgetMin}-${budgetMax}`,
+        location: location
+      });
+      
       const response = await fetch(`${window.location.origin}/functions/v1/generate-job-description`, {
         method: 'POST',
         headers: {
@@ -107,11 +115,16 @@ const PostJobModal = ({ isOpen, onClose }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate description');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+        throw new Error(errorData.error || `Failed to generate description: ${response.status}`);
       }
 
       const data = await response.json();
+      
+      if (!data.description) {
+        throw new Error('No description was generated');
+      }
+      
       form.setValue('description', data.description);
       
       toast({
@@ -182,7 +195,7 @@ const PostJobModal = ({ isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Post a New Job</DialogTitle>
           <DialogDescription>
@@ -254,7 +267,7 @@ const PostJobModal = ({ isOpen, onClose }) => {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center flex-wrap gap-2">
                     <FormLabel>Job Description</FormLabel>
                     {useAiDescription && (
                       <Button
@@ -288,12 +301,12 @@ const PostJobModal = ({ isOpen, onClose }) => {
               )}
             />
 
-            <div className="flex space-x-2">
+            <div className="flex flex-col sm:flex-row gap-4 sm:space-x-2">
               <FormField
                 control={form.control}
                 name="budget_min"
                 render={({ field }) => (
-                  <FormItem className="w-1/2">
+                  <FormItem className="w-full sm:w-1/2">
                     <FormLabel>Budget Min</FormLabel>
                     <FormControl>
                       <Input 
@@ -311,7 +324,7 @@ const PostJobModal = ({ isOpen, onClose }) => {
                 control={form.control}
                 name="budget_max"
                 render={({ field }) => (
-                  <FormItem className="w-1/2">
+                  <FormItem className="w-full sm:w-1/2">
                     <FormLabel>Budget Max</FormLabel>
                     <FormControl>
                       <Input 
@@ -400,12 +413,12 @@ const PostJobModal = ({ isOpen, onClose }) => {
               )}
             />
 
-            <div className="flex space-x-2">
+            <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
               <FormField
                 control={form.control}
                 name="is_emergency"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center space-x-2 rounded-md border p-2">
+                  <FormItem className="flex-1 flex flex-row items-center space-x-2 rounded-md border p-2">
                     <FormControl>
                       <Checkbox
                         checked={field.value}
@@ -420,7 +433,7 @@ const PostJobModal = ({ isOpen, onClose }) => {
                 control={form.control}
                 name="is_fix_now"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center space-x-2 rounded-md border p-2">
+                  <FormItem className="flex-1 flex flex-row items-center space-x-2 rounded-md border p-2">
                     <FormControl>
                       <Checkbox
                         checked={field.value}

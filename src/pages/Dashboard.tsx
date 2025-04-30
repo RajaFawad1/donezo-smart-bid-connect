@@ -21,11 +21,17 @@ const Dashboard = () => {
         navigate('/');
       } else {
         // When user is authenticated, make sure to invalidate queries to fetch fresh data
+        console.log("Dashboard: Invalidating queries for fresh data");
         queryClient.invalidateQueries({ queryKey: ['myJobs'] });
         queryClient.invalidateQueries({ queryKey: ['myBids'] });
         queryClient.invalidateQueries({ queryKey: ['myContracts'] });
         queryClient.invalidateQueries({ queryKey: ['openJobs'] });
         queryClient.invalidateQueries({ queryKey: ['bids'] });
+        
+        // Force refetch
+        queryClient.refetchQueries({ queryKey: ['myJobs'] });
+        queryClient.refetchQueries({ queryKey: ['openJobs'] });
+        
         setIsInitialized(true);
       }
     }
@@ -40,6 +46,8 @@ const Dashboard = () => {
   }
 
   const userType = user?.user_metadata?.user_type || 'customer';
+  
+  console.log("Dashboard rendering with user type:", userType);
   
   return (
     <div className="min-h-screen flex flex-col">

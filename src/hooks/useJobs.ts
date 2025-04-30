@@ -18,22 +18,33 @@ export function useJobs() {
   };
 
   const getJobWithBids = async (id: string): Promise<JobWithBids | null> => {
-    const { data, error } = await supabase
-      .from('jobs')
-      .select(`
-        *,
-        category:service_categories(*),
-        bids(*, provider:provider_id(*, user:id(id, email, user_metadata)))
-      `)
-      .eq('id', id)
-      .single();
-    
-    if (error) {
-      if (error.code === 'PGRST116') return null; // No rows returned
+    try {
+      console.log(`Fetching job details for job ID: ${id}`);
+      const { data, error } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          category:service_categories(*),
+          bids(*, provider:provider_id(*, user:id(id, email, user_metadata)))
+        `)
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching job with bids:", error);
+        if (error.code === 'PGRST116') {
+          console.log("No job found with ID:", id);
+          return null; // No rows returned
+        }
+        throw error;
+      }
+      
+      console.log("Job details fetched successfully:", data?.id);
+      return data as JobWithBids;
+    } catch (error) {
+      console.error("Exception in getJobWithBids:", error);
       throw error;
     }
-    
-    return data as JobWithBids;
   };
 
   const getMyJobs = async (): Promise<Job[]> => {
@@ -63,18 +74,30 @@ export function useJobs() {
   };
 
   const getOpenJobs = async (): Promise<Job[]> => {
-    const { data, error } = await supabase
-      .from('jobs')
-      .select('*, category:service_categories(*), bids_count:bids(count)')
-      .eq('status', 'open')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    return data.map(job => ({
-      ...job,
-      bids_count: job.bids_count[0].count
-    })) as Job[];
+    try {
+      console.log("Fetching open jobs for providers");
+      
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*, category:service_categories(*), bids_count:bids(count)')
+        .eq('status', 'open')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error("Error fetching open jobs:", error);
+        throw error;
+      }
+      
+      console.log(`Fetched ${data?.length || 0} open jobs`);
+      
+      return data.map(job => ({
+        ...job,
+        bids_count: job.bids_count?.[0]?.count || 0
+      })) as Job[];
+    } catch (error) {
+      console.error("Exception in getOpenJobs:", error);
+      throw error;
+    }
   };
 
   const createJob = async (job: Partial<Job>): Promise<Job> => {
@@ -150,6 +173,8 @@ export function useJobs() {
     return useQuery({
       queryKey: ['openJobs'],
       queryFn: getOpenJobs,
+      refetchOnWindowFocus: true,
+      staleTime: 1000 * 60, // 1 minute
     });
   };
 
