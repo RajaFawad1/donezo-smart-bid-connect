@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -114,12 +113,11 @@ const PostJobModal = ({ isOpen, onClose }) => {
         })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-        throw new Error(errorData.error || `Failed to generate description: ${response.status}`);
-      }
-
       const data = await response.json();
+      
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `Failed to generate description: ${response.status}`);
+      }
       
       if (!data.description) {
         throw new Error('No description was generated');

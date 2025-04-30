@@ -83,10 +83,10 @@ export function useJobs() {
     try {
       console.log("Fetching open jobs for providers");
       
-      // For providers, get ALL jobs (not just open ones) so they can see everything
+      // Modified query to prevent the join error
       const { data, error } = await supabase
         .from('jobs')
-        .select('*, category:service_categories(*), bids_count:bids(count)')
+        .select('*, category:service_categories(*)')
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -96,10 +96,22 @@ export function useJobs() {
       
       console.log(`Fetched ${data?.length || 0} jobs for provider`);
       
-      return data.map(job => ({
-        ...job,
-        bids_count: job.bids_count?.[0]?.count || 0
-      })) as Job[];
+      // Get bid counts in a separate query to avoid the join error
+      const jobsWithBidCounts = await Promise.all(data.map(async (job) => {
+        const { count, error: countError } = await supabase
+          .from('bids')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id);
+          
+        if (countError) {
+          console.error(`Error getting bid count for job ${job.id}:`, countError);
+          return { ...job, bids_count: 0 };
+        }
+        
+        return { ...job, bids_count: count || 0 };
+      }));
+      
+      return jobsWithBidCounts as Job[];
     } catch (error) {
       console.error("Exception in getOpenJobs:", error);
       throw error;

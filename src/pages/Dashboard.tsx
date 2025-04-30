@@ -13,6 +13,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isInitialized, setIsInitialized] = useState(false);
+  const [previousUserType, setPreviousUserType] = useState<string | null>(null);
+  
+  const userType = user?.user_metadata?.user_type || 'customer';
   
   useEffect(() => {
     // Redirect to home if not logged in
@@ -20,16 +23,30 @@ const Dashboard = () => {
       if (!user) {
         navigate('/');
       } else {
+        // Check if user type has changed and force refetch if it has
+        if (previousUserType !== null && previousUserType !== userType) {
+          console.log("User type changed from", previousUserType, "to", userType, "- invalidating all queries");
+          queryClient.invalidateQueries();
+          queryClient.refetchQueries();
+        }
+        
+        // Update previous user type
+        setPreviousUserType(userType);
+        
         // When user is authenticated, make sure to invalidate queries to fetch fresh data
         console.log("Dashboard: Invalidating queries for fresh data");
+        
         // Force invalidate and refetch all data
         queryClient.invalidateQueries();
         
-        // Specifically refetch important data
-        queryClient.refetchQueries({ queryKey: ['myJobs'] });
-        queryClient.refetchQueries({ queryKey: ['openJobs'] });
-        queryClient.refetchQueries({ queryKey: ['myBids'] });
-        queryClient.refetchQueries({ queryKey: ['myContracts'] });
+        // Specifically refetch important data based on user type
+        if (userType === 'customer') {
+          queryClient.refetchQueries({ queryKey: ['myJobs'] });
+        } else {
+          queryClient.refetchQueries({ queryKey: ['openJobs'] });
+          queryClient.refetchQueries({ queryKey: ['myBids'] });
+          queryClient.refetchQueries({ queryKey: ['myContracts'] });
+        }
         
         setTimeout(() => {
           // Set initialized after a small delay to ensure data has been fetched
@@ -37,7 +54,7 @@ const Dashboard = () => {
         }, 300);
       }
     }
-  }, [user, loading, navigate, queryClient]);
+  }, [user, loading, navigate, queryClient, userType, previousUserType]);
 
   if (loading || !isInitialized) {
     return (
@@ -46,8 +63,6 @@ const Dashboard = () => {
       </div>
     );
   }
-
-  const userType = user?.user_metadata?.user_type || 'customer';
   
   console.log("Dashboard rendering with user type:", userType);
   

@@ -26,14 +26,26 @@ serve(async (req) => {
       body = await req.json();
     } catch (error) {
       console.error("Error parsing request body:", error);
-      throw new Error("Invalid JSON in request body");
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     const { jobTitle, category, budget, location } = body;
 
     // Validate required parameters
     if (!jobTitle) {
-      throw new Error("Missing required parameter: jobTitle");
+      return new Response(
+        JSON.stringify({ error: "Missing required parameter: jobTitle" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     // Construct a prompt with the provided information
@@ -67,7 +79,13 @@ The description should be professional, clear, and include details about what th
     if (!response.ok) {
       const errorText = await response.text();
       console.error("OpenAI API error:", response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+      return new Response(
+        JSON.stringify({ error: `OpenAI API error: ${response.status}` }),
+        { 
+          status: response.status, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     let data;
@@ -75,12 +93,24 @@ The description should be professional, clear, and include details about what th
       data = await response.json();
     } catch (error) {
       console.error("Error parsing OpenAI response:", error);
-      throw new Error("Invalid response from OpenAI API");
+      return new Response(
+        JSON.stringify({ error: "Invalid response from OpenAI API" }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
     
     if (data.error) {
       console.error("OpenAI API returned an error:", data.error);
-      throw new Error(`OpenAI API error: ${data.error.message}`);
+      return new Response(
+        JSON.stringify({ error: `OpenAI API error: ${data.error.message}` }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
     
     const generatedDescription = data.choices[0].message.content;
