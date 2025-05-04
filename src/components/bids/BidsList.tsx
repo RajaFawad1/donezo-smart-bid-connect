@@ -5,16 +5,17 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { LinkIcon, ClockIcon, CheckCircle, XCircle, Info, MessageSquare } from 'lucide-react';
+import { LinkIcon, ClockIcon, CheckCircle, XCircle, Info, MessageSquare, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface BidsListProps {
   bids: Bid[];
   showDetailedView?: boolean;
   onAcceptBid?: (bid: Bid) => void;
+  highlightEmergency?: boolean;
 }
 
-const BidsList = ({ bids, showDetailedView = false, onAcceptBid }: BidsListProps) => {
+const BidsList = ({ bids, showDetailedView = false, onAcceptBid, highlightEmergency }: BidsListProps) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -45,7 +46,7 @@ const BidsList = ({ bids, showDetailedView = false, onAcceptBid }: BidsListProps
   return (
     <div className="space-y-4">
       {bids.map((bid) => (
-        <Card key={bid.id} className="overflow-hidden">
+        <Card key={bid.id} className={`overflow-hidden ${highlightEmergency && bid.status === 'pending' ? 'border-red-300' : ''}`}>
           <CardHeader className="pb-2">
             <div className="flex justify-between items-start">
               <div>
@@ -54,7 +55,14 @@ const BidsList = ({ bids, showDetailedView = false, onAcceptBid }: BidsListProps
                   Bid placed {formatDistanceToNow(new Date(bid.created_at), { addSuffix: true })}
                 </p>
               </div>
-              {getStatusBadge(bid.status)}
+              <div className="flex items-center space-x-2">
+                {highlightEmergency && (
+                  <Badge variant="outline" className="bg-red-100 text-red-800">
+                    <AlertTriangle className="h-3 w-3 mr-1" /> Emergency
+                  </Badge>
+                )}
+                {getStatusBadge(bid.status)}
+              </div>
             </div>
           </CardHeader>
           <CardContent>

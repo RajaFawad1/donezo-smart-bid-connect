@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Job, JobWithBids } from '@/types';
@@ -26,28 +25,64 @@ export function useJobs() {
   const getJobWithBids = async (id: string): Promise<JobWithBids | null> => {
     try {
       console.log(`Fetching job details for job ID: ${id}`);
-      const { data, error } = await supabase
+      
+      // First fetch the job details
+      const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .select(`
           *,
-          category:service_categories(*),
-          bids(*, provider:provider_id(*, user:id(id, email, user_metadata)))
+          category:service_categories(*)
         `)
         .eq('id', id)
-        .maybeSingle(); // Use maybeSingle instead of single to prevent errors when no rows are found
+        .maybeSingle();
       
-      if (error) {
-        console.error("Error fetching job with bids:", error);
-        throw error;
+      if (jobError) {
+        console.error("Error fetching job:", jobError);
+        throw jobError;
       }
       
-      if (!data) {
+      if (!jobData) {
         console.log("No job found with ID:", id);
         return null;
       }
       
-      console.log("Job details fetched successfully:", data?.id);
-      return data as JobWithBids;
+      // Then fetch bids separately to avoid the schema relationship issue
+      const { data: bidsData, error: bidsError } = await supabase
+        .from('bids')
+        .select('*')
+        .eq('job_id', id);
+      
+      if (bidsError) {
+        console.error("Error fetching bids:", bidsError);
+        throw bidsError;
+      }
+      
+      // For each bid, fetch the provider details
+      const bidsWithProvider = await Promise.all(bidsData.map(async (bid) => {
+        if (!bid.provider_id) return bid;
+        
+        const { data: provider, error: providerError } = await supabase
+          .from('service_providers')
+          .select('*, user:id(*)')
+          .eq('id', bid.provider_id)
+          .maybeSingle();
+        
+        if (providerError) {
+          console.error("Error fetching provider:", providerError);
+          return bid;
+        }
+        
+        return { ...bid, provider };
+      }));
+      
+      // Combine job and bids
+      const jobWithBids: JobWithBids = {
+        ...jobData,
+        bids: bidsWithProvider
+      };
+      
+      console.log("Job with bids fetched successfully:", jobWithBids.id);
+      return jobWithBids;
     } catch (error) {
       console.error("Exception in getJobWithBids:", error);
       throw error;
@@ -231,6 +266,7 @@ export function useJobs() {
       enabled: !!id,
       retry: 2, // Retry failed queries a couple times
       refetchOnWindowFocus: true,
+      refetchInterval: 30000, // Refetch every 30 seconds to keep bids updated
     });
   };
 
