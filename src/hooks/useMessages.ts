@@ -17,6 +17,8 @@ export function useMessages() {
 
   useEffect(() => {
     // Set up real-time subscription to messages
+    if (!user?.id) return;
+    
     const subscription = supabase
       .channel('public:messages')
       .on('postgres_changes', { 
@@ -44,8 +46,8 @@ export function useMessages() {
     });
 
     return () => {
-      if (realtime.subscription) {
-        supabase.removeChannel(realtime.subscription);
+      if (subscription) {
+        supabase.removeChannel(subscription);
       }
     };
   }, [queryClient, toast, user?.id]);
@@ -127,6 +129,8 @@ export function useMessages() {
   };
 
   const sendMessage = async (message: { receiver_id: string; content: string; job_id?: string }): Promise<Message> => {
+    if (!user?.id) throw new Error("You must be logged in to send messages");
+    
     const { data, error } = await supabase
       .from('messages')
       .insert([{

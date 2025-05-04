@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Contract } from '@/types';
@@ -29,34 +28,77 @@ export function useContracts() {
   };
 
   const createContract = async (contract: Partial<Contract>): Promise<Contract> => {
-    const { data, error } = await supabase
-      .from('contracts')
-      .insert([contract])
-      .select('*')
-      .single();
+    // First, check if amount exists in the contract object
+    if (!contract.amount && contract.bid_id) {
+      console.log("No amount provided in contract, fetching from bid");
+      // Fetch the amount from the bid
+      const { data: bidData, error: bidError } = await supabase
+        .from('bids')
+        .select('amount')
+        .eq('id', contract.bid_id)
+        .single();
+      
+      if (bidError) {
+        console.error("Error fetching bid amount:", bidError);
+        throw bidError;
+      }
+      
+      // Set the amount from the bid
+      contract.amount = bidData.amount;
+      console.log(`Using amount ${contract.amount} from bid`);
+    }
     
-    if (error) throw error;
+    console.log("Creating contract with data:", contract);
     
-    // Update job status to in_progress
-    await supabase
-      .from('jobs')
-      .update({ status: 'in_progress' })
-      .eq('id', contract.job_id);
-    
-    // Update bid status to accepted
-    await supabase
-      .from('bids')
-      .update({ status: 'accepted' })
-      .eq('id', contract.bid_id);
-    
-    // Reject other bids
-    await supabase
-      .from('bids')
-      .update({ status: 'rejected' })
-      .eq('job_id', contract.job_id)
-      .neq('id', contract.bid_id);
-    
-    return data as Contract;
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .insert([{
+          job_id: contract.job_id,
+          bid_id: contract.bid_id,
+          customer_id: contract.customer_id,
+          provider_id: contract.provider_id,
+          amount: contract.amount,
+          status: contract.status || 'in_progress',
+          payment_status: contract.payment_status || 'in_escrow',
+          start_date: contract.start_date || new Date().toISOString()
+        }])
+        .select('*')
+        .single();
+      
+      if (error) {
+        console.error("Error creating contract:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error("Failed to create contract - no data returned");
+      }
+      
+      // Update job status to in_progress
+      await supabase
+        .from('jobs')
+        .update({ status: 'in_progress' })
+        .eq('id', contract.job_id);
+      
+      // Update bid status to accepted
+      await supabase
+        .from('bids')
+        .update({ status: 'accepted' })
+        .eq('id', contract.bid_id);
+      
+      // Reject other bids
+      await supabase
+        .from('bids')
+        .update({ status: 'rejected' })
+        .eq('job_id', contract.job_id)
+        .neq('id', contract.bid_id);
+      
+      return data as Contract;
+    } catch (err) {
+      console.error("Error in createContract:", err);
+      throw err;
+    }
   };
 
   const updateContract = async ({ id, ...updates }: Partial<Contract> & { id: string }): Promise<Contract> => {
