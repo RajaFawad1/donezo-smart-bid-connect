@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Job } from '@/types';
@@ -8,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { AlertTriangle, Clock, CheckCircle, Info, MessageSquare, MapPin } from 'lucide-react';
 import BidModal from '@/components/bids/BidModal';
 import JobDetailsModal from './JobDetailsModal';
+import { useJobs } from '@/hooks/useJobs';
 
 interface JobsListProps {
   jobs: Job[];
@@ -19,6 +21,9 @@ const JobsList = ({ jobs, showBidButton = false }: JobsListProps) => {
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  
+  // Get the useAveragePricing hook to show average prices
+  const { useAveragePricing } = useJobs();
 
   const handleOpenBidModal = (job: Job) => {
     setSelectedJob(job);
@@ -71,80 +76,102 @@ const JobsList = ({ jobs, showBidButton = false }: JobsListProps) => {
 
   return (
     <div className="space-y-4">
-      {jobs.map((job) => (
-        <Card key={job.id}>
-          <CardHeader className="pb-2">
-            <div className="flex justify-between items-start">
-              <CardTitle className="text-xl">{job.title}</CardTitle>
-              <div className="flex space-x-2">
-                {job.is_emergency && (
-                  <Badge className="bg-red-500 hover:bg-red-600">Emergency</Badge>
-                )}
-                {job.is_fix_now && (
-                  <Badge className="bg-purple-500 hover:bg-purple-600">Fix Now</Badge>
-                )}
-                {getStatusBadge(job.status)}
+      {jobs.map((job) => {
+        // Use average pricing hook for this job's category
+        const { data: averagePrice } = job.category_id ? 
+          useAveragePricing(job.category_id) : { data: null };
+        
+        return (
+          <Card key={job.id}>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-xl">{job.title}</CardTitle>
+                <div className="flex space-x-2">
+                  {job.is_emergency && (
+                    <Badge className="bg-red-500 hover:bg-red-600">Emergency</Badge>
+                  )}
+                  {job.is_fix_now && (
+                    <Badge className="bg-purple-500 hover:bg-purple-600">Fix Now</Badge>
+                  )}
+                  {getStatusBadge(job.status)}
+                </div>
               </div>
-            </div>
-            <div className="flex items-center text-sm text-gray-500 mt-1">
-              <p>{job.category?.name}</p>
-              <span className="mx-2">•</span>
-              <p>Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</p>
-              {job.bids_count !== undefined && (
-                <>
-                  <span className="mx-2">•</span>
-                  <p>{job.bids_count} bid{job.bids_count !== 1 ? 's' : ''}</p>
-                </>
+              <div className="flex items-center text-sm text-gray-500 mt-1">
+                <p>{job.category?.name}</p>
+                <span className="mx-2">•</span>
+                <p>Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</p>
+                {job.bids_count !== undefined && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <p>{job.bids_count} bid{job.bids_count !== 1 ? 's' : ''}</p>
+                  </>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-700 line-clamp-2">{job.description}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {job.budget_min && job.budget_max && (
+                  <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                    Budget: ${job.budget_min} - ${job.budget_max}
+                    {averagePrice && !job.is_emergency && !job.is_fix_now && (
+                      <span className="ml-1 text-gray-500">
+                        (Avg: ${averagePrice})
+                      </span>
+                    )}
+                  </span>
+                )}
+                {job.location && (
+                  <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                    <MapPin className="mr-1 h-3 w-3" /> {job.location}
+                  </span>
+                )}
+                {job.preferred_date && (
+                  <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-600/20">
+                    Preferred Date: {new Date(job.preferred_date).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              
+              {/* Display premium pricing notes for emergency/fix now jobs */}
+              {(job.is_emergency || job.is_fix_now) && (
+                <div className="mt-3 text-xs text-amber-700">
+                  <p className="flex items-center">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    {job.is_fix_now && "Premium pricing applied for Fix Now service. "}
+                    {job.is_emergency && "Higher rates apply for Emergency service."}
+                  </p>
+                </div>
               )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-700 line-clamp-2">{job.description}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {job.budget_min && job.budget_max && (
-                <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                  Budget: ${job.budget_min} - ${job.budget_max}
-                </span>
-              )}
-              {job.location && (
-                <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
-                  <MapPin className="mr-1 h-3 w-3" /> {job.location}
-                </span>
-              )}
-              {job.preferred_date && (
-                <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-600/20">
-                  Preferred Date: {new Date(job.preferred_date).toLocaleDateString()}
-                </span>
-              )}
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between pt-2">
-            <Button 
-              variant="outline" 
-              onClick={() => handleOpenDetailsModal(job)}
-            >
-              <Info className="mr-2 h-4 w-4" /> View Details
-            </Button>
-            
-            {showBidButton ? (
+            </CardContent>
+            <CardFooter className="flex justify-between pt-2">
               <Button 
-                onClick={() => handleOpenBidModal(job)}
-                className="bg-donezo-teal hover:bg-donezo-teal/90"
+                variant="outline" 
+                onClick={() => handleOpenDetailsModal(job)}
               >
-                Place Bid
+                <Info className="mr-2 h-4 w-4" /> View Details
               </Button>
-            ) : (
-              <Link to={`/jobs/${job.id}`}
-                 onClick={() => setIsNavigating(true)}
-                 >
-                <Button className="bg-donezo-blue hover:bg-donezo-blue/90">
-                  <MessageSquare className="mr-2 h-4 w-4" /> Manage Job
+              
+              {showBidButton ? (
+                <Button 
+                  onClick={() => handleOpenBidModal(job)}
+                  className="bg-donezo-teal hover:bg-donezo-teal/90"
+                >
+                  Place Bid
                 </Button>
-              </Link>
-            )}
-          </CardFooter>
-        </Card>
-      ))}
+              ) : (
+                <Link to={`/jobs/${job.id}`}
+                   onClick={() => setIsNavigating(true)}
+                   >
+                  <Button className="bg-donezo-blue hover:bg-donezo-blue/90">
+                    <MessageSquare className="mr-2 h-4 w-4" /> Manage Job
+                  </Button>
+                </Link>
+              )}
+            </CardFooter>
+          </Card>
+        );
+      })}
 
       {selectedJob && (
         <>

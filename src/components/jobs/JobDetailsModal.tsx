@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Job } from '@/types';
 import { formatDistanceToNow, format } from 'date-fns';
 import { AlertTriangle, MapPin, Clock, Calendar, DollarSign } from 'lucide-react';
+import { useJobs } from '@/hooks/useJobs';
 
 interface JobDetailsModalProps {
   isOpen: boolean;
@@ -21,6 +22,11 @@ const JobDetailsModal = ({
   showBidButton = false,
   onBid 
 }: JobDetailsModalProps) => {
+  // Get average pricing for this job's category
+  const { useAveragePricing } = useJobs();
+  const { data: averagePrice } = job.category_id ? 
+    useAveragePricing(job.category_id) : { data: null };
+  
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open':
@@ -70,6 +76,11 @@ const JobDetailsModal = ({
               </h3>
               <p className="mt-1 text-sm text-gray-900">
                 ${job.budget_min} - ${job.budget_max}
+                {averagePrice && !job.is_emergency && !job.is_fix_now && (
+                  <span className="ml-1 text-xs text-gray-500">
+                    (Avg price: ${averagePrice})
+                  </span>
+                )}
               </p>
             </div>
             
@@ -111,10 +122,15 @@ const JobDetailsModal = ({
                   {job.is_fix_now && 'Fix Now Priority'}
                 </p>
                 <p className="text-amber-700 mt-0.5">
-                  {job.is_emergency && 'This job requires urgent attention.'}
+                  {job.is_emergency && 'This job requires urgent attention with higher pricing.'}
                   {job.is_emergency && job.is_fix_now && ' '}
-                  {job.is_fix_now && 'Customer is willing to pay premium for fast service.'}
+                  {job.is_fix_now && 'Premium service with priority matching to providers.'}
                 </p>
+                {(job.is_emergency || job.is_fix_now) && (
+                  <p className="text-amber-700 mt-1 font-medium">
+                    Premium pricing applied: {job.is_fix_now ? '+20%' : ''} {job.is_emergency ? '+30%' : ''}
+                  </p>
+                )}
               </div>
             </div>
           )}

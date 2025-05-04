@@ -60,6 +60,7 @@ export interface ServiceProvider {
   is_available_emergency: boolean;
   created_at: string;
   updated_at: string;
+  is_premium_partner?: boolean;
   user?: {
     id: string;
     email: string;
@@ -93,6 +94,8 @@ export interface Contract {
   updated_at: string;
   job?: Job;
   bid?: Bid;
+  before_images?: JobImage[];
+  after_images?: JobImage[];
 }
 
 export interface Review {
@@ -133,5 +136,15 @@ export interface Notification {
   type: string;
   reference_id: string | null;
   is_read: boolean;
+  created_at: string;
+}
+
+// New interfaces for job images feature
+export interface JobImage {
+  id: string;
+  contract_id: string;
+  image_url: string;
+  image_type: 'before' | 'after';
+  description?: string;
   created_at: string;
 }

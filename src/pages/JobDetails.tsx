@@ -5,10 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useJobs } from '@/hooks/useJobs';
 import { useContracts } from '@/hooks/useContracts';
 import { useBids } from '@/hooks/useBids';
+import { useJobImages } from '@/hooks/useJobImages';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import BidModal from '@/components/bids/BidModal';
 import BidsList from '@/components/bids/BidsList';
+import JobImageUploader from '@/components/jobs/JobImageUploader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,8 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { formatDistanceToNow } from 'date-fns';
-import { Bid } from '@/types';
+import { formatDistanceToNow, format } from 'date-fns';
+import { Bid, JobImage } from '@/types';
 import { 
   ChevronLeft,
   Info, 
@@ -32,8 +34,10 @@ import {
   MessageSquare, 
   Loader2,
   Clock, 
+  AlertTriangle, 
   CheckCircle, 
-  XCircle 
+  XCircle,
+  Camera
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -49,6 +53,7 @@ const JobDetails = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedBid, setSelectedBid] = useState<Bid | null>(null);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [showJobImageUploaders, setShowJobImageUploaders] = useState(false);
   
   const { data: job, isLoading: jobLoading } = useJobById(jobId);
   const { data: bids = [], isLoading: bidsLoading } = useBidsByJobId(jobId);
@@ -57,7 +62,18 @@ const JobDetails = () => {
   const isCustomer = user?.id === job?.customer_id;
   const isProvider = user?.user_metadata?.user_type === 'provider';
   const hasUserBidded = bids?.some(bid => bid.provider_id === user?.id);
+  const isPremiumPartner = isProvider && user?.user_metadata?.is_premium_partner;
+  
+  // Get contract ID if job is in progress or completed
+  const activeContract = job?.status === 'in_progress' || job?.status === 'completed' 
+    ? bids.find(bid => bid.status === 'accepted')?.id 
+    : null;
 
+  // Fetch job images if there's an active contract
+  const { useContractBeforeImages, useContractAfterImages } = useJobImages();
+  const { data: beforeImages = [] } = useContractBeforeImages(activeContract);
+  const { data: afterImages = [] } = useContractAfterImages(activeContract);
+  
   const handleAcceptBid = (bid: Bid) => {
     setSelectedBid(bid);
     setConfirmDialogOpen(true);
@@ -130,6 +146,24 @@ const JobDetails = () => {
     }
   };
 
+  // Calculate time remaining for emergency response (24h from posting)
+  const getEmergencyTimeRemaining = () => {
+    if (!job) return null;
+    
+    const emergencyWindow = 24 * 60 * 60 * 1000; // 24 hours in ms
+    const jobCreated = new Date(job.created_at).getTime();
+    const current = new Date().getTime();
+    const elapsed = current - jobCreated;
+    
+    if (elapsed > emergencyWindow) {
+      return 0; // Emergency window expired
+    }
+    
+    return Math.max(0, Math.floor((emergencyWindow - elapsed) / (60 * 60 * 1000))); // remaining hours
+  };
+  
+  const emergencyHoursRemaining = job?.is_emergency ? getEmergencyTimeRemaining() : null;
+
   if (jobLoading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -197,6 +231,25 @@ const JobDetails = () => {
             </div>
           </div>
           
+          {/* Emergency countdown banner */}
+          {job.is_emergency && job.status === 'open' && emergencyHoursRemaining !== null && (
+            <div className={`mb-6 rounded-md p-4 flex items-center ${emergencyHoursRemaining > 0 ? 'bg-red-100' : 'bg-gray-100'}`}>
+              <AlertTriangle className={`h-6 w-6 mr-3 ${emergencyHoursRemaining > 0 ? 'text-red-600' : 'text-gray-500'}`} />
+              <div>
+                <h3 className={`font-medium ${emergencyHoursRemaining > 0 ? 'text-red-900' : 'text-gray-700'}`}>
+                  {emergencyHoursRemaining > 0 
+                    ? `Emergency Service: ${emergencyHoursRemaining} hours remaining for priority response` 
+                    : "Emergency window has expired"}
+                </h3>
+                <p className={`text-sm ${emergencyHoursRemaining > 0 ? 'text-red-700' : 'text-gray-500'}`}>
+                  {emergencyHoursRemaining > 0 
+                    ? "Providers will get bonus rates for responding quickly to this emergency job."
+                    : "This emergency job is still open but no longer qualifies for expedited service."}
+                </p>
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left column: Job details */}
             <div className="lg:col-span-2">
@@ -228,14 +281,27 @@ const JobDetails = () => {
                   </div>
                 </CardContent>
                 {isProvider && job.status === 'open' && (
-                  <CardFooter>
+                  <CardFooter className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
                     {!hasUserBidded ? (
-                      <Button 
-                        className="w-full bg-donezo-teal hover:bg-donezo-teal/90"
-                        onClick={() => setIsBidModalOpen(true)}
-                      >
-                        Place Bid
-                      </Button>
+                      <>
+                        <Button 
+                          className="w-full sm:w-auto bg-donezo-teal hover:bg-donezo-teal/90"
+                          onClick={() => setIsBidModalOpen(true)}
+                        >
+                          Place Bid
+                        </Button>
+                        
+                        {/* Show premium provider fast-track option */}
+                        {(job.is_emergency || job.is_fix_now) && isPremiumPartner && (
+                          <Button 
+                            className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600"
+                            onClick={() => setIsBidModalOpen(true)}
+                          >
+                            <AlertTriangle className="mr-2 h-4 w-4" />
+                            Fast-Track Bid (Premium)
+                          </Button>
+                        )}
+                      </>
                     ) : (
                       <Button variant="outline" disabled className="w-full">
                         You have already bid on this job
@@ -264,10 +330,115 @@ const JobDetails = () => {
                         bids={bids} 
                         showDetailedView={true}
                         onAcceptBid={isCustomer && job.status === 'open' ? handleAcceptBid : undefined}
+                        highlightEmergency={job.is_emergency}
                       />
                     )}
                   </CardContent>
                 </Card>
+              )}
+              
+              {/* Job images section - for in-progress or completed jobs */}
+              {(job.status === 'in_progress' || job.status === 'completed') && activeContract && (
+                <div className="mt-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold">Job Progress Images</h2>
+                    {!showJobImageUploaders && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowJobImageUploaders(!showJobImageUploaders)}
+                        className="flex items-center"
+                      >
+                        <Camera className="mr-2 h-4 w-4" />
+                        Manage Photos
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {showJobImageUploaders ? (
+                    // Photo management view
+                    <div className="space-y-6">
+                      <JobImageUploader 
+                        contractId={activeContract} 
+                        imageType="before" 
+                        existingImages={beforeImages}
+                      />
+                      
+                      <JobImageUploader 
+                        contractId={activeContract} 
+                        imageType="after" 
+                        existingImages={afterImages}
+                      />
+                      
+                      <div className="flex justify-end">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setShowJobImageUploaders(false)}
+                        >
+                          Done
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Photo gallery view
+                    <div className="space-y-6">
+                      {(beforeImages.length > 0 || afterImages.length > 0) ? (
+                        <>
+                          {beforeImages.length > 0 && (
+                            <div>
+                              <h3 className="font-medium mb-2">Before Images</h3>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                {beforeImages.map((image) => (
+                                  <div key={image.id} className="relative group">
+                                    <img 
+                                      src={image.image_url} 
+                                      alt={image.description || "Before image"}
+                                      className="w-full h-32 object-cover rounded-md"
+                                    />
+                                    {image.description && (
+                                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-1 text-xs">
+                                        {image.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {afterImages.length > 0 && (
+                            <div>
+                              <h3 className="font-medium mb-2">After Images</h3>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                {afterImages.map((image) => (
+                                  <div key={image.id} className="relative group">
+                                    <img 
+                                      src={image.image_url} 
+                                      alt={image.description || "After image"}
+                                      className="w-full h-32 object-cover rounded-md"
+                                    />
+                                    {image.description && (
+                                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-1 text-xs">
+                                        {image.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-center py-8 bg-gray-50 rounded-md border border-gray-200">
+                          <Camera className="mx-auto h-12 w-12 text-gray-400" />
+                          <h3 className="mt-2 font-medium text-gray-900">No images yet</h3>
+                          <p className="text-gray-500 mt-1">
+                            No before/after photos have been uploaded for this job
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             
@@ -307,6 +478,46 @@ const JobDetails = () => {
                     )}
                   </div>
                 </CardContent>
+                
+                {/* Emergency service info */}
+                {job.is_emergency && (
+                  <div className="px-6 py-3 border-t border-gray-200">
+                    <div className="flex items-start">
+                      <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 mr-2 shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-sm text-red-800">Emergency Service</h4>
+                        <p className="text-xs text-red-600 mt-1">
+                          This job has been marked as an emergency and will receive priority attention
+                          from service providers.
+                        </p>
+                        
+                        {emergencyHoursRemaining !== null && emergencyHoursRemaining > 0 && (
+                          <div className="mt-2 flex items-center text-xs font-medium text-red-800">
+                            <Clock className="h-3 w-3 mr-1" /> 
+                            {emergencyHoursRemaining} hours remaining in emergency window
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Fix now service info */}
+                {job.is_fix_now && (
+                  <div className="px-6 py-3 border-t border-gray-200">
+                    <div className="flex items-start">
+                      <Clock className="h-5 w-5 text-purple-500 mt-0.5 mr-2 shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-sm text-purple-800">Fix Now Priority</h4>
+                        <p className="text-xs text-purple-600 mt-1">
+                          This job is using the Fix Now service and will be matched with premium
+                          service providers for faster resolution.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {isCustomer && job.status === 'open' && (
                   <CardFooter className="flex-col space-y-2">
                     <Button 
@@ -354,6 +565,9 @@ const JobDetails = () => {
                       <li>Place a bid on this job</li>
                       <li>Message the customer</li>
                       <li>Propose your price and estimated hours</li>
+                      {isPremiumPartner && (job.is_emergency || job.is_fix_now) && (
+                        <li className="text-amber-600 font-medium">You qualify for premium partner fast-track bidding</li>
+                      )}
                     </ul>
                   </CardContent>
                 </Card>

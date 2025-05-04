@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Job, JobWithBids } from '@/types';
@@ -118,6 +119,42 @@ export function useJobs() {
     }
   };
 
+  // Get average price for a service category
+  const getAveragePricing = async (categoryId: string): Promise<number | null> => {
+    try {
+      // Get completed contracts in this category to calculate average pricing
+      const { data: jobs, error: jobsError } = await supabase
+        .from('jobs')
+        .select('id')
+        .eq('category_id', categoryId)
+        .eq('status', 'completed');
+      
+      if (jobsError || !jobs || jobs.length === 0) {
+        console.log("No completed jobs found for category:", categoryId);
+        return null;
+      }
+      
+      const jobIds = jobs.map(job => job.id);
+      
+      // Get the contracts for these jobs
+      const { data: contracts, error: contractsError } = await supabase
+        .from('contracts')
+        .select('amount')
+        .in('job_id', jobIds);
+      
+      if (contractsError || !contracts || contracts.length === 0) {
+        return null;
+      }
+      
+      // Calculate average
+      const total = contracts.reduce((sum, contract) => sum + Number(contract.amount), 0);
+      return Math.round(total / contracts.length);
+    } catch (error) {
+      console.error("Error getting average pricing:", error);
+      return null;
+    }
+  };
+
   const createJob = async (job: Partial<Job>): Promise<Job> => {
     console.log("Creating job with data:", job);
     
@@ -133,6 +170,23 @@ export function useJobs() {
     // Ensure status is set correctly
     if (!job.status) {
       job.status = "open";
+    }
+    
+    // Calculate price adjustments for emergency and fix now options
+    if (job.is_emergency || job.is_fix_now) {
+      // If we have budget values, adjust them for premium service
+      if (job.budget_min && job.budget_max) {
+        // Apply premium of 20% for fix now and 30% for emergency
+        const fixNowPremium = job.is_fix_now ? 1.2 : 1;
+        const emergencyPremium = job.is_emergency ? 1.3 : 1;
+        
+        // Apply both premiums if both are selected
+        const totalPremium = fixNowPremium * emergencyPremium;
+        
+        // Round to whole numbers
+        job.budget_min = Math.round(job.budget_min * totalPremium);
+        job.budget_max = Math.round(job.budget_max * totalPremium);
+      }
     }
 
     const { data, error } = await supabase
@@ -198,6 +252,16 @@ export function useJobs() {
     });
   };
 
+  // Query to get average pricing for a service category
+  const useAveragePricing = (categoryId: string | undefined) => {
+    return useQuery({
+      queryKey: ['averagePricing', categoryId],
+      queryFn: () => categoryId ? getAveragePricing(categoryId) : Promise.resolve(null),
+      enabled: !!categoryId,
+      staleTime: 1000 * 60 * 60, // 1 hour
+    });
+  };
+
   // Mutations
   const useCreateJob = () => {
     return useMutation({
@@ -245,6 +309,7 @@ export function useJobs() {
     useJobById,
     useMyJobs,
     useOpenJobs,
+    useAveragePricing,
     useCreateJob,
     useUpdateJob,
   };

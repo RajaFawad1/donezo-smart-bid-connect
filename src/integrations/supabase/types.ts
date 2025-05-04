@@ -9,6 +9,50 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bids: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string | null
+          estimated_hours: number
+          id: string
+          job_id: string
+          provider_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description?: string | null
+          estimated_hours: number
+          id?: string
+          job_id: string
+          provider_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          estimated_hours?: number
+          id?: string
+          job_id?: string
+          provider_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bids_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           bid_id: string | null

@@ -18,6 +18,7 @@ import Profile from "./pages/Profile";
 import JobDetails from "./pages/JobDetails";
 import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
+import UserOnboarding from "./pages/UserOnboarding";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:userId" element={<Messages />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/onboarding" element={<UserOnboarding />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
