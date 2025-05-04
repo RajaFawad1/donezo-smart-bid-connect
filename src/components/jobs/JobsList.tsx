@@ -14,9 +14,10 @@ import { useJobs } from '@/hooks/useJobs';
 interface JobsListProps {
   jobs: Job[];
   showBidButton?: boolean;
+  onJobClick?: (jobId: string) => void; // Add this prop
 }
 
-const JobsList = ({ jobs, showBidButton = false }: JobsListProps) => {
+const JobsList = ({ jobs, showBidButton = false, onJobClick }: JobsListProps) => {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -161,8 +162,10 @@ const JobsList = ({ jobs, showBidButton = false }: JobsListProps) => {
                 </Button>
               ) : (
                 <Link to={`/jobs/${job.id}`}
-                   onClick={() => setIsNavigating(true)}
-                   >
+                   onClick={() => {
+                     setIsNavigating(true);
+                     onJobClick && onJobClick(job.id);
+                   }}>
                   <Button className="bg-donezo-blue hover:bg-donezo-blue/90">
                     <MessageSquare className="mr-2 h-4 w-4" /> Manage Job
                   </Button>
