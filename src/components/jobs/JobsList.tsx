@@ -17,6 +17,7 @@ interface JobsListProps {
 const JobsList = ({ jobs, showBidButton = false }: JobsListProps) => {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   const handleOpenBidModal = (job: Job) => {
@@ -133,7 +134,9 @@ const JobsList = ({ jobs, showBidButton = false }: JobsListProps) => {
                 Place Bid
               </Button>
             ) : (
-              <Link to={`/jobs/${job.id}`}>
+              <Link to={`/jobs/${job.id}`}
+                 onClick={() => setIsNavigating(true)}
+                 >
                 <Button className="bg-donezo-blue hover:bg-donezo-blue/90">
                   <MessageSquare className="mr-2 h-4 w-4" /> Manage Job
                 </Button>

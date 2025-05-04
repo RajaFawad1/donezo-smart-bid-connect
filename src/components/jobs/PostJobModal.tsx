@@ -86,7 +86,7 @@ const PostJobModal = ({ isOpen, onClose }) => {
       });
       return;
     }
-
+  
     try {
       setIsGeneratingDescription(true);
       
@@ -100,23 +100,18 @@ const PostJobModal = ({ isOpen, onClose }) => {
         location: location
       });
       
-      const response = await fetch(`${window.location.origin}/functions/v1/generate-job-description`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      // Using Supabase invoke instead of fetch
+      const { data, error } = await supabase.functions.invoke('generate-job-description', {
+        body: {
           jobTitle: title,
           category: categoryName,
           budget: `${budgetMin}-${budgetMax}`,
           location: location
-        })
+        }
       });
-
-      const data = await response.json();
-      
-      if (!response.ok || data.error) {
-        throw new Error(data.error || `Failed to generate description: ${response.status}`);
+  
+      if (error || !data) {
+        throw new Error(error?.message || 'Failed to generate description');
       }
       
       if (!data.description) {
