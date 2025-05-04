@@ -56,8 +56,13 @@ const JobDetails = () => {
   const [showJobImageUploaders, setShowJobImageUploaders] = useState(false);
   
   const { data: job, isLoading: jobLoading } = useJobById(jobId);
-  const { data: bids = [], isLoading: bidsLoading } = useBidsByJobId(jobId);
+  // Use the useBidsByJobId hook to directly fetch bids for more reliable data
+  const { data: bidsList = [], isLoading: bidsLoading } = useBidsByJobId(jobId);
   const createContractMutation = useCreateContract();
+
+  // Make sure we're using the bids from the hook, not from the job object
+  const bids = bidsList.length > 0 ? bidsList : (job?.bids || []);
+  console.log("Job bids:", bids);
 
   const isCustomer = user?.id === job?.customer_id;
   const isProvider = user?.user_metadata?.user_type === 'provider';
@@ -199,6 +204,7 @@ const JobDetails = () => {
       <Navbar />
       <main className="flex-grow bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+          {/* Back button and job header */}
           <div className="mb-6">
             <Button 
               variant="outline"

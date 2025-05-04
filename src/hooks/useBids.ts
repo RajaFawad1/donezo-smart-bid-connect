@@ -25,14 +25,58 @@ export function useBids() {
   };
 
   const getBidsByJobId = async (jobId: string): Promise<Bid[]> => {
-    const { data, error } = await supabase
-      .from('bids')
-      .select('*, provider:provider_id(*)')
-      .eq('job_id', jobId)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data as Bid[];
+    try {
+      console.log(`Fetching bids for job ID: ${jobId}`);
+      
+      // First get all bids for this job
+      const { data: bids, error } = await supabase
+        .from('bids')
+        .select('*')
+        .eq('job_id', jobId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error("Error fetching bids:", error);
+        throw error;
+      }
+      
+      if (!bids || bids.length === 0) {
+        console.log("No bids found for job:", jobId);
+        return [];
+      }
+      
+      console.log(`Found ${bids.length} bids for job ${jobId}`);
+      
+      // Enrich each bid with provider details
+      const enrichedBids = await Promise.all(bids.map(async (bid) => {
+        if (!bid.provider_id) return bid;
+        
+        try {
+          // Get provider details
+          const { data: provider, error: providerError } = await supabase
+            .from('service_providers')
+            .select('*, user:id(*)')
+            .eq('id', bid.provider_id)
+            .maybeSingle();
+          
+          if (providerError) {
+            console.error("Error fetching provider for bid:", providerError);
+            return bid;
+          }
+          
+          return { ...bid, provider };
+        } catch (err) {
+          console.error("Error enriching bid with provider data:", err);
+          return bid;
+        }
+      }));
+      
+      console.log("Enriched bids with provider data:", enrichedBids.length);
+      return enrichedBids as Bid[];
+    } catch (err) {
+      console.error("Error in getBidsByJobId:", err);
+      throw err;
+    }
   };
 
   const createBid = async (bid: Partial<Bid>): Promise<Bid> => {
@@ -90,6 +134,8 @@ export function useBids() {
       queryKey: ['bids', jobId],
       queryFn: () => jobId ? getBidsByJobId(jobId) : Promise.resolve([]),
       enabled: !!jobId,
+      refetchInterval: 30000, // Refetch every 30 seconds to keep bids updated
+      refetchOnWindowFocus: true,
     });
   };
 

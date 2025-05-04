@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJobs } from '@/hooks/useJobs';
 import { useContracts } from '@/hooks/useContracts';
@@ -16,6 +15,7 @@ import ContractsList from '@/components/contracts/ContractsList';
 
 const CustomerDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { useMyJobs } = useJobs();
   const { useMyContracts } = useContracts();
   const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
@@ -46,6 +46,11 @@ const CustomerDashboard = () => {
       queryClient.invalidateQueries({ queryKey: ['myJobs'] });
       refetchJobs();
     }, 300);
+  };
+
+  // Navigate to job details page
+  const handleViewJobDetails = (jobId: string) => {
+    navigate(`/jobs/${jobId}`);
   };
 
   // Count jobs by status
@@ -201,7 +206,10 @@ const CustomerDashboard = () => {
                   <p className="text-gray-500">You haven't posted any jobs yet.</p>
                 </div>
               )}
-              <JobsList jobs={jobs || []} />
+              <JobsList 
+                jobs={jobs || []} 
+                onJobClick={handleViewJobDetails}
+              />
             </>
           )}
         </TabsContent>
