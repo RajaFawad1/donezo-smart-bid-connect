@@ -14,9 +14,10 @@ interface BidsListProps {
   showDetailedView?: boolean;
   onAcceptBid?: (bid: Bid) => void;
   highlightEmergency?: boolean;
+  onJobClick?: (jobId: string) => void;
 }
 
-const BidsList = ({ bids, showDetailedView = false, onAcceptBid, highlightEmergency = false }: BidsListProps) => {
+const BidsList = ({ bids, showDetailedView = false, onAcceptBid, highlightEmergency = false, onJobClick }: BidsListProps) => {
   const { user } = useAuth();
 
   if (!bids || bids.length === 0) {
@@ -55,7 +56,8 @@ const BidsList = ({ bids, showDetailedView = false, onAcceptBid, highlightEmerge
 
   const renderBid = (bid: Bid) => {
     const bidderName = bid.provider?.business_name || 'Service Provider';
-    const isPremiumPartner = bid.provider?.user?.user_metadata?.is_premium_partner;
+    // Check if provider.user exists and if user_metadata exists before accessing is_premium_partner
+    const isPremiumPartner = bid.provider?.user?.user_metadata?.is_premium_partner || false;
     const isCustomer = user?.id !== bid.provider_id;
 
     return (

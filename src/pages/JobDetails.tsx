@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,7 +46,7 @@ const JobDetails = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { useJobById } = useJobs();
-  const { useCreateContract } = useContracts();
+  const { useCreateContract, useStripeCheckout } = useContracts();
   const { useBidsByJobId } = useBids();
   
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
@@ -58,7 +59,8 @@ const JobDetails = () => {
   // Use the useBidsByJobId hook to directly fetch bids for more reliable data
   const { data: bidsList = [], isLoading: bidsLoading } = useBidsByJobId(jobId);
   const createContractMutation = useCreateContract();
-
+  const stripeCheckoutMutation = useStripeCheckout();
+  
   // Make sure we're using the bids from the hook, not from the job object
   const bids = bidsList.length > 0 ? bidsList : (job?.bids || []);
   console.log("Job bids:", bids);
@@ -89,47 +91,26 @@ const JobDetails = () => {
     try {
       setPaymentProcessing(true);
       
-      // Here we would integrate with a payment provider to place funds in escrow
-      // For now, we'll simulate the escrow by just creating the contract
-      
-      await createContractMutation.mutateAsync({
+      // Create a contract first
+      const contract = await createContractMutation.mutateAsync({
         job_id: job.id,
         bid_id: selectedBid.id,
         customer_id: job.customer_id,
         provider_id: selectedBid.provider_id,
         amount: selectedBid.amount,
-        status: 'in_progress',
-        payment_status: 'in_escrow', // This indicates funds are in escrow
+        status: 'pending', // Will be updated to in_progress after payment
+        payment_status: 'not_paid', // Will be updated to in_escrow after payment
         start_date: new Date().toISOString(),
       });
       
-      // Update the job status to in_progress
-      await supabase
-        .from('jobs')
-        .update({ status: 'in_progress' })
-        .eq('id', job.id);
-        
-      // Update the bid status to accepted
-      await supabase
-        .from('bids')
-        .update({ status: 'accepted' })
-        .eq('id', selectedBid.id);
+      // Now redirect to Stripe checkout
+      await stripeCheckoutMutation.mutateAsync(contract.id);
       
-      // Update any other pending bids to rejected
-      await supabase
-        .from('bids')
-        .update({ status: 'rejected' })
-        .eq('job_id', job.id)
-        .neq('id', selectedBid.id)
-        .eq('status', 'pending');
-        
       setConfirmDialogOpen(false);
-      setPaymentProcessing(false);
+      // No need to navigate here as useStripeCheckout will redirect to Stripe
       
-      // Redirect to dashboard after creating contract
-      navigate('/dashboard');
     } catch (error) {
-      console.error('Error creating contract:', error);
+      console.error('Error creating contract or initiating payment:', error);
       setConfirmDialogOpen(false);
       setPaymentProcessing(false);
     }
