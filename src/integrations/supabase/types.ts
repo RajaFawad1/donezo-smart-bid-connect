@@ -55,28 +55,46 @@ export type Database = {
       }
       contracts: {
         Row: {
+          amount: number | null
           bid_id: string | null
           created_at: string
           customer_id: string | null
+          end_date: string | null
           id: string
           job_id: string | null
+          payment_status: string | null
           provider_id: string | null
+          start_date: string | null
+          status: string | null
+          updated_at: string | null
         }
         Insert: {
+          amount?: number | null
           bid_id?: string | null
           created_at?: string
           customer_id?: string | null
+          end_date?: string | null
           id?: string
           job_id?: string | null
+          payment_status?: string | null
           provider_id?: string | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
         }
         Update: {
+          amount?: number | null
           bid_id?: string | null
           created_at?: string
           customer_id?: string | null
+          end_date?: string | null
           id?: string
           job_id?: string | null
+          payment_status?: string | null
           provider_id?: string | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
