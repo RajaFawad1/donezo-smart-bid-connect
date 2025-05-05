@@ -56,8 +56,11 @@ const BidsList = ({ bids, showDetailedView = false, onAcceptBid, highlightEmerge
 
   const renderBid = (bid: Bid) => {
     const bidderName = bid.provider?.business_name || 'Service Provider';
-    // Check if provider.user exists and if user_metadata exists before accessing is_premium_partner
-    const isPremiumPartner = bid.provider?.user?.user_metadata?.is_premium_partner || false;
+    
+    // Fix the TypeScript error by safely accessing the is_premium_partner property
+    // First check if provider exists, then if provider.user exists, then use optional chaining for user_metadata
+    const isPremiumPartner = bid.provider?.is_premium_partner || false;
+    
     const isCustomer = user?.id !== bid.provider_id;
 
     return (

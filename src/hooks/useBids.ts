@@ -64,6 +64,11 @@ export function useBids() {
             return bid;
           }
           
+          // Add is_premium_partner directly to the provider object if it's from user_metadata
+          if (provider && provider.user?.user_metadata) {
+            provider.is_premium_partner = provider.user.user_metadata.is_premium_partner || false;
+          }
+          
           return { ...bid, provider };
         } catch (err) {
           console.error("Error enriching bid with provider data:", err);

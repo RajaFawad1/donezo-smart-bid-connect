@@ -58,9 +58,9 @@ export interface ServiceProvider {
   availability: string[] | null;
   is_verified: boolean;
   is_available_emergency: boolean;
+  is_premium_partner: boolean;
   created_at: string;
   updated_at: string;
-  is_premium_partner?: boolean;
   user?: {
     id: string;
     email: string;
