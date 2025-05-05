@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -20,6 +19,7 @@ import JobDetails from "./pages/JobDetails";
 import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
 import UserOnboarding from "./pages/UserOnboarding";
+import PaymentSuccess from "./pages/PaymentSuccess";
 
 // Create a new QueryClient instance inside the component
 const App = () => {
@@ -33,23 +33,24 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/services" element={<Services />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-              <Route path="/terms-of-service" element={<TermsOfService />} />
-              <Route path="/cookie-policy" element={<CookiePolicy />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/jobs/:jobId" element={<JobDetails />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/messages/:userId" element={<Messages />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/onboarding" element={<UserOnboarding />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <div className="app">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/services" element={<Services />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/messages/:userId?" element={<Messages />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/onboarding" element={<UserOnboarding />} />
+                <Route path="/jobs/:jobId" element={<JobDetails />} />
+                <Route path="/payment-success" element={<PaymentSuccess />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/cookies" element={<CookiePolicy />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

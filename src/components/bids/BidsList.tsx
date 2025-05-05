@@ -1,11 +1,12 @@
 
-import { useState } from 'react';
+import React from 'react';
 import { Bid } from '@/types';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { CheckCircle, Clock, XCircle, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { LinkIcon, ClockIcon, CheckCircle, XCircle, Info, MessageSquare, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface BidsListProps {
@@ -15,7 +16,17 @@ interface BidsListProps {
   highlightEmergency?: boolean;
 }
 
-const BidsList = ({ bids, showDetailedView = false, onAcceptBid, highlightEmergency }: BidsListProps) => {
+const BidsList = ({ bids, showDetailedView = false, onAcceptBid, highlightEmergency = false }: BidsListProps) => {
+  const { user } = useAuth();
+
+  if (!bids || bids.length === 0) {
+    return (
+      <div className="text-center p-4 border rounded-md bg-gray-50">
+        <p className="text-gray-500">No bids have been placed yet.</p>
+      </div>
+    );
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -29,119 +40,107 @@ const BidsList = ({ bids, showDetailedView = false, onAcceptBid, highlightEmerge
     }
   };
 
-  if (!bids || bids.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <Info className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-lg font-medium text-gray-900">No bids found</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          {showDetailedView 
-            ? "This job hasn't received any bids yet." 
-            : "You haven't placed any bids yet."}
-        </p>
-      </div>
-    );
-  }
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="h-4 w-4 text-blue-500" />;
+      case 'accepted':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'rejected':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
 
-  return (
-    <div className="space-y-4">
-      {bids.map((bid) => (
-        <Card key={bid.id} className={`overflow-hidden ${highlightEmergency && bid.status === 'pending' ? 'border-red-300' : ''}`}>
-          <CardHeader className="pb-2">
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle className="text-lg">{bid.job?.title || 'Untitled Job'}</CardTitle>
-                <p className="text-sm text-gray-500">
-                  Bid placed {formatDistanceToNow(new Date(bid.created_at), { addSuffix: true })}
-                </p>
-              </div>
-              <div className="flex items-center space-x-2">
-                {highlightEmergency && (
-                  <Badge variant="outline" className="bg-red-100 text-red-800">
-                    <AlertTriangle className="h-3 w-3 mr-1" /> Emergency
-                  </Badge>
+  const renderBid = (bid: Bid) => {
+    const bidderName = bid.provider?.business_name || 'Service Provider';
+    const isPremiumPartner = bid.provider?.user?.user_metadata?.is_premium_partner;
+    const isCustomer = user?.id !== bid.provider_id;
+
+    return (
+      <Card 
+        key={bid.id} 
+        className={`mb-4 ${bid.status === 'accepted' ? 'border-green-400' : ''}`}
+      >
+        <CardContent className="pt-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center">
+                <h3 className="font-medium">{bidderName}</h3>
+                {isPremiumPartner && (
+                  <Badge className="ml-2 bg-amber-500 hover:bg-amber-600">Premium Partner</Badge>
                 )}
-                {getStatusBadge(bid.status)}
+                <span className="ml-2">{getStatusBadge(bid.status)}</span>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Bid Amount</p>
-                <p className="font-semibold">${bid.amount}</p>
-              </div>
-              {bid.estimated_hours && (
-                <div>
-                  <p className="text-sm text-gray-500">Est. Hours</p>
-                  <p className="font-semibold">{bid.estimated_hours}</p>
+              
+              <p className="text-sm text-gray-500 mt-1">
+                Bid placed {formatDistanceToNow(new Date(bid.created_at), { addSuffix: true })}
+              </p>
+              
+              {showDetailedView && (
+                <div className="mt-3">
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{bid.description}</p>
                 </div>
               )}
-              <div>
-                <p className="text-sm text-gray-500">Hourly Rate</p>
-                <p className="font-semibold">
-                  {bid.estimated_hours ? `$${(bid.amount / bid.estimated_hours).toFixed(2)}/hr` : 'N/A'}
-                </p>
-              </div>
             </div>
-            {bid.description && (
-              <div className="mt-3">
-                <p className="text-sm text-gray-500">Proposal</p>
-                <p className="text-sm mt-1">{bid.description}</p>
-              </div>
-            )}
 
-            {showDetailedView && bid.provider && (
-              <div className="mt-4 p-3 bg-gray-50 rounded-md">
-                <div className="flex items-center space-x-2">
-                  <div className="h-10 w-10 rounded-full bg-donezo-blue text-white flex items-center justify-center font-semibold">
-                    {bid.provider?.business_name?.charAt(0) || 
-                     bid.provider?.user?.user_metadata?.full_name?.charAt(0) || 'P'}
-                  </div>
-                  <div>
-                    <p className="font-medium">
-                      {bid.provider?.business_name || 
-                       bid.provider?.user?.user_metadata?.full_name || 'Service Provider'}
-                    </p>
-                    {bid.provider?.years_experience && (
-                      <p className="text-xs text-gray-500">
-                        {bid.provider.years_experience} years experience
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="flex justify-between pt-0">
-            {!showDetailedView ? (
-              <Link to={`/jobs/${bid.job_id}`} className="w-full">
-                <Button variant="outline" className="w-full">
-                  <LinkIcon className="h-4 w-4 mr-2" /> View Job Details
-                </Button>
-              </Link>
-            ) : (
-              <div className="flex w-full space-x-2">
-                {bid.provider && (
-                  <Link to={`/messages/${bid.provider_id}`} className="flex-1">
-                    <Button variant="outline" className="w-full">
-                      <MessageSquare className="h-4 w-4 mr-2" /> Message Provider
+            <div className="text-right">
+              <p className="font-bold text-lg">${bid.amount}</p>
+              <p className="text-sm text-gray-500">Est. {bid.estimated_hours} {bid.estimated_hours === 1 ? 'hour' : 'hours'}</p>
+            </div>
+          </div>
+
+          {showDetailedView && (
+            <div className="mt-4 flex justify-between items-center flex-wrap gap-2">
+              {isCustomer ? (
+                <div className="flex flex-wrap gap-2">
+                  {bid.provider_id && (
+                    <Link to={`/messages/${bid.provider_id}`}>
+                      <Button variant="outline" size="sm">
+                        <MessageSquare className="mr-1 h-4 w-4" /> Message Provider
+                      </Button>
+                    </Link>
+                  )}
+                  
+                  {onAcceptBid && bid.status === 'pending' && (
+                    <Button 
+                      size="sm" 
+                      className="bg-donezo-teal hover:bg-donezo-teal/90"
+                      onClick={() => onAcceptBid(bid)}
+                    >
+                      <CheckCircle className="mr-1 h-4 w-4" /> Accept Bid
                     </Button>
-                  </Link>
-                )}
-                {bid.status === 'pending' && onAcceptBid && (
-                  <Button 
-                    onClick={() => onAcceptBid(bid)} 
-                    className="flex-1 bg-donezo-teal hover:bg-donezo-teal/90"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" /> Accept Bid
-                  </Button>
-                )}
-              </div>
-            )}
-          </CardFooter>
-        </Card>
-      ))}
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  {getStatusIcon(bid.status)}
+                  <span className="ml-1 text-sm capitalize text-gray-700">
+                    {bid.status === 'pending' 
+                      ? 'Waiting for customer response' 
+                      : bid.status === 'accepted' 
+                        ? 'Your bid was accepted!' 
+                        : 'Your bid was rejected'}
+                  </span>
+                </div>
+              )}
+              
+              {highlightEmergency && isPremiumPartner && (
+                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                  Premium Partner Fast Response
+                </Badge>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  return (
+    <div>
+      {bids.map(renderBid)}
     </div>
   );
 };

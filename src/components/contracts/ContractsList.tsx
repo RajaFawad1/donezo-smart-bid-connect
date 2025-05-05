@@ -26,7 +26,9 @@ import {
   XCircle, 
   Info,
   Loader2,
-  Wallet
+  Wallet,
+  MapPin,
+  CreditCard
 } from 'lucide-react';
 
 interface ContractsListProps {
@@ -35,14 +37,27 @@ interface ContractsListProps {
 
 const ContractsList = ({ contracts }: ContractsListProps) => {
   const { user } = useAuth();
-  const { useReleasePayment } = useContracts();
+  const { useReleasePayment, useStripeCheckout } = useContracts();
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [trackLocationModalOpen, setTrackLocationModalOpen] = useState(false);
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  
   const releasePaymentMutation = useReleasePayment();
+  const stripeCheckoutMutation = useStripeCheckout();
 
   const handleReleasePayment = (contractId: string) => {
     setSelectedContractId(contractId);
     setReleaseDialogOpen(true);
+  };
+
+  const handleStripeCheckout = (contractId: string) => {
+    stripeCheckoutMutation.mutate(contractId);
+  };
+
+  const handleTrackLocation = (providerId: string) => {
+    setSelectedProviderId(providerId);
+    setTrackLocationModalOpen(true);
   };
 
   const confirmReleasePayment = async () => {
@@ -76,7 +91,9 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'not_paid':
-        return <Badge variant="outline" className="bg-orange-100 text-orange-800 hover:bg-orange-100">In Escrow</Badge>;
+        return <Badge variant="outline" className="bg-orange-100 text-orange-800 hover:bg-orange-100">Not Paid</Badge>;
+      case 'in_escrow':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">In Escrow</Badge>;
       case 'paid':
         return <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-100">Paid</Badge>;
       case 'refunded':
@@ -120,6 +137,11 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
                   <p className="font-semibold">${contract.amount}</p>
                   {contract.payment_status === 'not_paid' && contract.status !== 'completed' && (
                     <p className="text-xs text-orange-600 mt-1">
+                      Payment required to start service
+                    </p>
+                  )}
+                  {contract.payment_status === 'in_escrow' && (
+                    <p className="text-xs text-blue-600 mt-1">
                       Amount held in escrow until job completion
                     </p>
                   )}
@@ -161,10 +183,33 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
                   <MessageSquare className="h-4 w-4 mr-2" /> Message
                 </Button>
               </Link>
+
+              {/* Payment button for customers when contract is in not_paid status */}
+              {user?.id === contract.customer_id && 
+                contract.status !== 'completed' && 
+                contract.payment_status === 'not_paid' && (
+                <Button 
+                  className="flex-1 min-w-[120px] bg-donezo-teal hover:bg-donezo-teal/90"
+                  onClick={() => handleStripeCheckout(contract.id)}
+                  disabled={stripeCheckoutMutation.isPending}
+                >
+                  {stripeCheckoutMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4 mr-2" /> Pay Now
+                    </>
+                  )}
+                </Button>
+              )}
+              
               {/* Show release payment button for customers when contract is in_progress and payment is in escrow */}
               {user?.id === contract.customer_id && 
                 contract.status === 'in_progress' && 
-                contract.payment_status === 'not_paid' && (
+                contract.payment_status === 'in_escrow' && (
                 <Button 
                   className="flex-1 min-w-[120px] bg-donezo-teal hover:bg-donezo-teal/90"
                   onClick={() => handleReleasePayment(contract.id)}
@@ -180,6 +225,19 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
                       <Wallet className="h-4 w-4 mr-2" /> Release Payment
                     </>
                   )}
+                </Button>
+              )}
+              
+              {/* Track location button for customers with in-progress contracts */}
+              {user?.id === contract.customer_id && 
+                contract.status === 'in_progress' && 
+                contract.payment_status !== 'not_paid' && (
+                <Button 
+                  className="flex-1 min-w-[120px]"
+                  variant="outline"
+                  onClick={() => handleTrackLocation(contract.provider_id)}
+                >
+                  <MapPin className="h-4 w-4 mr-2" /> Track Provider
                 </Button>
               )}
             </CardFooter>
@@ -200,6 +258,29 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
             <AlertDialogAction onClick={confirmReleasePayment}>
               Release Payment
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Location Tracking Modal */}
+      <AlertDialog open={trackLocationModalOpen} onOpenChange={setTrackLocationModalOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Provider Location</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="py-4">
+                <div className="bg-gray-200 h-64 rounded-md flex items-center justify-center">
+                  <p className="text-gray-500">Provider's location will appear here</p>
+                  {/* In a real app, this would show a map with the provider's location */}
+                </div>
+                <p className="mt-4 text-sm">
+                  The service provider's location will be updated in real-time when they're en route to your location.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setTrackLocationModalOpen(false)}>Close</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -60,7 +60,7 @@ export function useContracts() {
           provider_id: contract.provider_id,
           amount: contract.amount,
           status: contract.status || 'in_progress',
-          payment_status: contract.payment_status || 'in_escrow',
+          payment_status: contract.payment_status || 'not_paid',
           start_date: contract.start_date || new Date().toISOString()
         }])
         .select('*')
@@ -130,6 +130,7 @@ export function useContracts() {
     return data as Contract;
   };
 
+  // Modify the releasePayment function to integrate with Stripe
   const releasePayment = async (contractId: string): Promise<Contract> => {
     // Get contract info
     const { data: contract, error: contractError } = await supabase
@@ -166,6 +167,49 @@ export function useContracts() {
       .eq('id', contract.job_id);
     
     return data as Contract;
+  };
+  
+  // Create a new function to create a Stripe checkout session
+  const createStripeCheckoutSession = async (contractId: string): Promise<string> => {
+    try {
+      // Get contract details
+      const { data: contract, error: contractError } = await supabase
+        .from('contracts')
+        .select(`
+          *,
+          job:job_id(title),
+          provider:provider_id(*)
+        `)
+        .eq('id', contractId)
+        .single();
+      
+      if (contractError) throw contractError;
+      
+      // Create a checkout session through our backend
+      const response = await fetch('/api/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contractId: contract.id,
+          amount: contract.amount,
+          jobTitle: contract.job.title,
+          providerId: contract.provider_id
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create checkout session');
+      }
+      
+      const { checkoutUrl } = await response.json();
+      return checkoutUrl;
+    } catch (err) {
+      console.error("Error creating Stripe session:", err);
+      throw err;
+    }
   };
 
   // Queries
@@ -236,11 +280,30 @@ export function useContracts() {
       },
     });
   };
+  
+  // New mutation for Stripe checkout
+  const useStripeCheckout = () => {
+    return useMutation({
+      mutationFn: createStripeCheckoutSession,
+      onSuccess: (checkoutUrl) => {
+        // Redirect to Stripe checkout
+        window.location.href = checkoutUrl;
+      },
+      onError: (error: any) => {
+        toast({ 
+          title: 'Failed to create payment session', 
+          description: error.message,
+          variant: 'destructive' 
+        });
+      },
+    });
+  };
 
   return {
     useMyContracts,
     useCreateContract,
     useUpdateContract,
     useReleasePayment,
+    useStripeCheckout,
   };
 }
