@@ -2,8 +2,8 @@
 import React, { useState, useRef } from 'react';
 import { useSprings, animated, to as interpolate } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
-import { useOpenJobs } from '@/hooks/useJobs';
-import { useCreateBid } from '@/hooks/useBids';
+import { useJobs } from '@/hooks/useJobs';
+import { useBids } from '@/hooks/useBids';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,9 @@ const trans = (r: number, s: number) =>
 const SwipeToBid: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { useOpenJobs } = useJobs();
+  const { useCreateBid } = useBids();
+  
   const { data: jobs = [], isLoading } = useOpenJobs();
   const { mutate: createBid } = useCreateBid();
   

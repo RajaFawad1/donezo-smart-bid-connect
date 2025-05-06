@@ -3,15 +3,19 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Container } from '@/components/ui/container';
 import JobsList from '@/components/jobs/JobsList';
-import { useOpenJobs } from '@/hooks/useJobs';
-import { useMyBids } from '@/hooks/useBids';
-import { useMyContracts } from '@/hooks/useContracts';
+import { useJobs } from '@/hooks/useJobs';
+import { useBids } from '@/hooks/useBids';
+import { useContracts } from '@/hooks/useContracts';
 import ContractsList from '@/components/contracts/ContractsList';
 import { Button } from '@/components/ui/button';
 import SwipeToBid from '@/components/jobs/SwipeToBid';
 
 const ProviderDashboard = () => {
   const [view, setView] = useState<string>('swipe');
+  const { useOpenJobs } = useJobs();
+  const { useMyBids } = useBids();
+  const { useMyContracts } = useContracts();
+  
   const { data: openJobs, isLoading: jobsLoading } = useOpenJobs();
   const { data: myBids, isLoading: bidsLoading } = useMyBids();
   const { data: myContracts, isLoading: contractsLoading } = useMyContracts();
@@ -43,7 +47,6 @@ const ProviderDashboard = () => {
           <JobsList
             jobs={openJobs || []}
             showBidButton={true}
-            isLoading={jobsLoading}
             emptyMessage="No available jobs found. Check back later for new opportunities."
             view="provider"
           />
@@ -110,7 +113,6 @@ const ProviderDashboard = () => {
         <TabsContent value="contracts">
           <ContractsList 
             contracts={myContracts || []} 
-            isLoading={contractsLoading}
             view="provider"
           />
         </TabsContent>
