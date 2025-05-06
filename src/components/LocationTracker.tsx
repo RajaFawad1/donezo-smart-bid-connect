@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import ProviderLocationMap from '@/components/maps/ProviderLocationMap';
 
 interface LocationTrackerProps {
   contractId: string;
@@ -210,9 +211,13 @@ const LocationTracker: React.FC<LocationTrackerProps> = ({ contractId, providerI
                 </Button>
               </div>
               {location && (
-                <div className="bg-gray-50 p-3 rounded-md text-xs">
-                  <p>Lat: {location.latitude.toFixed(6)}</p>
-                  <p>Long: {location.longitude.toFixed(6)}</p>
+                <div>
+                  <ProviderLocationMap 
+                    latitude={location.latitude}
+                    longitude={location.longitude}
+                    providerName="Your current location"
+                    lastUpdated={lastUpdated}
+                  />
                 </div>
               )}
             </div>
@@ -234,32 +239,12 @@ const LocationTracker: React.FC<LocationTrackerProps> = ({ contractId, providerI
   
   // Customer view
   return location ? (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <MapPin className="h-5 w-5 mr-2" />
-          Provider Location
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div className="h-48 bg-gray-100 rounded-md flex items-center justify-center relative">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <p className="text-gray-500">
-                Provider's location is available
-              </p>
-              {/* In a real app, this would show a map with the provider's location */}
-            </div>
-          </div>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>Last updated: {lastUpdated}</span>
-            <span>
-              Lat: {location.latitude.toFixed(6)}, Long: {location.longitude.toFixed(6)}
-            </span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <ProviderLocationMap 
+      latitude={location.latitude}
+      longitude={location.longitude}
+      providerName="Service Provider"
+      lastUpdated={lastUpdated}
+    />
   ) : (
     <Card>
       <CardHeader>

@@ -21,6 +21,7 @@ import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
 import UserOnboarding from "./pages/UserOnboarding";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import AdminPanel from "./pages/AdminPanel";
 
 // Create a new QueryClient instance inside the component
 const App = () => {
@@ -47,6 +48,7 @@ const App = () => {
                 <Route path="/onboarding" element={<UserOnboarding />} />
                 <Route path="/jobs/:jobId" element={<JobDetails />} />
                 <Route path="/payment-success" element={<PaymentSuccess />} />
+                <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/cookies" element={<CookiePolicy />} />

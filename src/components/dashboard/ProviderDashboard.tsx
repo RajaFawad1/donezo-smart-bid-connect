@@ -1,246 +1,121 @@
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { useBids } from '@/hooks/useBids';
-import { useJobs } from '@/hooks/useJobs';
-import { useContracts } from '@/hooks/useContracts';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Search, Clock, CheckCircle, XCircle, MessageSquare, RefreshCcw } from 'lucide-react';
-import BidsList from '@/components/bids/BidsList';
-import ContractsList from '@/components/contracts/ContractsList';
+import { Container } from '@/components/ui/container';
 import JobsList from '@/components/jobs/JobsList';
-import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import { useEffect } from 'react';
+import { useOpenJobs } from '@/hooks/useJobs';
+import { useMyBids } from '@/hooks/useBids';
+import { useMyContracts } from '@/hooks/useContracts';
+import ContractsList from '@/components/contracts/ContractsList';
+import { Button } from '@/components/ui/button';
+import SwipeToBid from '@/components/jobs/SwipeToBid';
 
 const ProviderDashboard = () => {
-  const { user } = useAuth();
-  const { useOpenJobs } = useJobs();
-  const { useMyBids } = useBids();
-  const { useMyContracts } = useContracts();
-  const queryClient = useQueryClient();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const { data: openJobs = [], isLoading: openJobsLoading, refetch: refetchJobs } = useOpenJobs();
-  const { data: myBids = [], isLoading: bidsLoading } = useMyBids();
-  const { data: contracts = [], isLoading: contractsLoading } = useMyContracts();
-
-  // Count bids by status
-  const pendingBidsCount = myBids.filter(bid => bid.status === 'pending').length;
-  const acceptedBidsCount = myBids.filter(bid => bid.status === 'accepted').length;
-  const rejectedBidsCount = myBids.filter(bid => bid.status === 'rejected').length;
-
-  // Count active contracts
-  const activeContractsCount = contracts.filter(contract => contract.status === 'in_progress').length;
+  const [view, setView] = useState<string>('swipe');
+  const { data: openJobs, isLoading: jobsLoading } = useOpenJobs();
+  const { data: myBids, isLoading: bidsLoading } = useMyBids();
+  const { data: myContracts, isLoading: contractsLoading } = useMyContracts();
   
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      console.log("Manually refreshing provider dashboard data");
-      await queryClient.invalidateQueries({ queryKey: ['openJobs'] });
-      await queryClient.invalidateQueries({ queryKey: ['myBids'] });
-      await queryClient.invalidateQueries({ queryKey: ['myContracts'] });
-      await refetchJobs();
-    } finally {
-      setTimeout(() => setIsRefreshing(false), 500);
-    }
-  };
-  
-  useEffect(() => {
-    const fetchContracts = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        
-        const { data, error } = await supabase
-          .from('contracts')
-          .select(`
-            *,
-            job:job_id(*),
-            bid:bid_id(*)
-          `)
-          .eq('provider_id', user.id);
-        
-        if (error) {
-          console.error("Error fetching contracts:", error);
-        } else {
-          console.log("Provider contracts found:", data?.length || 0, data);
-        }
-      } catch (err) {
-        console.error("Error in fetchContracts:", err);
-      }
-    };
-    
-    fetchContracts();
-  }, []);
-
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8 flex justify-between items-center">
+    <Container className="py-8">
+      <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Provider Dashboard</h1>
-          <p className="mt-1 text-lg text-gray-500">
-            Welcome back, {user?.user_metadata?.full_name || 'Provider'}!
+          <h1 className="text-3xl font-bold">Provider Dashboard</h1>
+          <p className="text-gray-600 mt-1">
+            Find jobs, manage your bids, and track your contracts
           </p>
         </div>
-        <Button 
-          onClick={handleRefresh}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-          disabled={isRefreshing}
-        >
-          <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
-        </Button>
       </div>
       
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Bids</p>
-                <p className="text-3xl font-bold">{pendingBidsCount}</p>
-              </div>
-              <div className="p-2 bg-blue-100 rounded-full">
-                <Clock className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Accepted Bids</p>
-                <p className="text-3xl font-bold">{acceptedBidsCount}</p>
-              </div>
-              <div className="p-2 bg-green-100 rounded-full">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Rejected Bids</p>
-                <p className="text-3xl font-bold">{rejectedBidsCount}</p>
-              </div>
-              <div className="p-2 bg-red-100 rounded-full">
-                <XCircle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Contracts</p>
-                <p className="text-3xl font-bold">{activeContractsCount}</p>
-              </div>
-              <div className="p-2 bg-amber-100 rounded-full">
-                <Clock className="h-6 w-6 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle>Find New Jobs</CardTitle>
-            <CardDescription>Browse job listings that match your skills</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button 
-              onClick={() => window.location.href = "#open-jobs"} 
-              className="w-full bg-donezo-teal hover:bg-donezo-teal/90"
-            >
-              <Search className="mr-2 h-4 w-4" /> Find Jobs
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle>My Profile</CardTitle>
-            <CardDescription>Update your profile to attract more clients</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Link to="/profile" className="w-full">
-              <Button variant="outline" className="w-full">
-                Update Profile
-              </Button>
-            </Link>
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle>Messages</CardTitle>
-            <CardDescription>Communicate with customers</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Link to="/messages" className="w-full">
-              <Button variant="outline" className="w-full">
-                <MessageSquare className="mr-2 h-4 w-4" /> View Messages
-              </Button>
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
-
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="jobs" className="w-full" id="open-jobs">
-        <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="jobs">Available Jobs</TabsTrigger>
-          <TabsTrigger value="bids">My Bids</TabsTrigger>
-          <TabsTrigger value="contracts">My Contracts</TabsTrigger>
+      <Tabs defaultValue={view} onValueChange={setView}>
+        <TabsList className="w-full mb-6 grid grid-cols-4">
+          <TabsTrigger value="swipe">Swipe Jobs</TabsTrigger>
+          <TabsTrigger value="available">Available Jobs</TabsTrigger>
+          <TabsTrigger value="bids">My Bids {myBids?.length ? `(${myBids.length})` : ''}</TabsTrigger>
+          <TabsTrigger value="contracts">My Contracts {myContracts?.length ? `(${myContracts.length})` : ''}</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="jobs">
-          {openJobsLoading ? (
-            <div className="flex justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-blue"></div>
-            </div>
-          ) : (
-            <JobsList jobs={openJobs} showBidButton={true} />
-          )}
+
+        <TabsContent value="swipe">
+          <SwipeToBid />
         </TabsContent>
-        
+
+        <TabsContent value="available">
+          <JobsList
+            jobs={openJobs || []}
+            showBidButton={true}
+            isLoading={jobsLoading}
+            emptyMessage="No available jobs found. Check back later for new opportunities."
+            view="provider"
+          />
+        </TabsContent>
+
         <TabsContent value="bids">
-          {bidsLoading ? (
-            <div className="flex justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-blue"></div>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Your Bids</h2>
+              
+              {bidsLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-donezo-blue"></div>
+                </div>
+              ) : myBids && myBids.length > 0 ? (
+                <div className="space-y-6">
+                  {myBids.map((bid) => (
+                    <div key={bid.id} className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                      <div className="flex justify-between">
+                        <div>
+                          <h3 className="font-medium">{bid.job?.title || 'Job'}</h3>
+                          <div className="flex gap-4 text-sm text-gray-600 mt-1">
+                            <span>Bid Amount: ${bid.amount}</span>
+                            <span>Est. Hours: {bid.estimated_hours}</span>
+                          </div>
+                        </div>
+                        <div className={`
+                          inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                          ${bid.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+                          ${bid.status === 'accepted' ? 'bg-green-100 text-green-800' : ''}
+                          ${bid.status === 'rejected' ? 'bg-red-100 text-red-800' : ''}
+                        `}>
+                          {bid.status}
+                        </div>
+                      </div>
+                      <p className="text-gray-700 text-sm mt-2">{bid.description}</p>
+                      
+                      {bid.status === 'pending' && (
+                        <div className="mt-3">
+                          <Button variant="outline" size="sm" className="text-xs">
+                            Edit Bid
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">You haven't placed any bids yet</p>
+                  <Button 
+                    variant="default" 
+                    className="mt-4"
+                    onClick={() => setView('swipe')}
+                  >
+                    Find Jobs to Bid On
+                  </Button>
+                </div>
+              )}
             </div>
-          ) : (
-            <BidsList bids={myBids} />
-          )}
+          </div>
         </TabsContent>
-        
+
         <TabsContent value="contracts">
-          {contractsLoading ? (
-            <div className="flex justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-blue"></div>
-            </div>
-          ) : (
-            <ContractsList contracts={contracts} />
-          )}
+          <ContractsList 
+            contracts={myContracts || []} 
+            isLoading={contractsLoading}
+            view="provider"
+          />
         </TabsContent>
       </Tabs>
-    </div>
+    </Container>
   );
 };
 
