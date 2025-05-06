@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import PostJobModal from '@/components/jobs/PostJobModal';
 import JobsList from '@/components/jobs/JobsList';
 import ContractsList from '@/components/contracts/ContractsList';
+import { supabase } from '@/lib/supabase';
 
 const CustomerDashboard = () => {
   const { user } = useAuth();

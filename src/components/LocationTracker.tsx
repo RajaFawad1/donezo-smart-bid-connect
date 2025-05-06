@@ -13,6 +13,12 @@ interface LocationTrackerProps {
   isProvider: boolean;
 }
 
+interface LocationData {
+  latitude: number;
+  longitude: number;
+  updated_at: string;
+}
+
 const LocationTracker: React.FC<LocationTrackerProps> = ({ contractId, providerId, isProvider }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -111,12 +117,13 @@ const LocationTracker: React.FC<LocationTrackerProps> = ({ contractId, providerI
         }
         
         if (data) {
+          const locationData = data as LocationData;
           setLocation({
-            latitude: data.latitude,
-            longitude: data.longitude
+            latitude: locationData.latitude,
+            longitude: locationData.longitude
           });
           
-          const updatedAt = new Date(data.updated_at);
+          const updatedAt = new Date(locationData.updated_at);
           const now = new Date();
           const diffMinutes = (now.getTime() - updatedAt.getTime()) / (1000 * 60);
           
@@ -145,11 +152,12 @@ const LocationTracker: React.FC<LocationTrackerProps> = ({ contractId, providerI
         filter: `provider_id=eq.${providerId}` 
       }, (payload) => {
         if (payload.new) {
+          const newData = payload.new as LocationData;
           setLocation({
-            latitude: payload.new.latitude,
-            longitude: payload.new.longitude
+            latitude: newData.latitude,
+            longitude: newData.longitude
           });
-          setLastUpdated(new Date(payload.new.updated_at).toLocaleTimeString());
+          setLastUpdated(new Date(newData.updated_at).toLocaleTimeString());
         }
       })
       .subscribe();
