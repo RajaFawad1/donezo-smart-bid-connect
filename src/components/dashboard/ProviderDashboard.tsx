@@ -47,8 +47,6 @@ const ProviderDashboard = () => {
           <JobsList
             jobs={openJobs || []}
             showBidButton={true}
-            emptyMessage="No available jobs found. Check back later for new opportunities."
-            view="provider"
           />
         </TabsContent>
 
@@ -112,8 +110,7 @@ const ProviderDashboard = () => {
 
         <TabsContent value="contracts">
           <ContractsList 
-            contracts={myContracts || []} 
-            view="provider"
+            contracts={myContracts || []}
           />
         </TabsContent>
       </Tabs>

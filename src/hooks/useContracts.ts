@@ -16,12 +16,14 @@ export function useContracts() {
       
       console.log("Fetching contracts for user:", userId);
       
+      // Modified query to avoid the relationship error
       const { data, error } = await supabase
         .from('contracts')
         .select(`
           *,
           job:job_id(*),
-          bid:bid_id(*)
+          customer:customer_id(*),
+          provider:provider_id(*)
         `)
         .or(`customer_id.eq.${userId},provider_id.eq.${userId}`)
         .order('created_at', { ascending: false });
@@ -216,6 +218,23 @@ export function useContracts() {
     }
   };
   
+  // Add a new function for job completion with photos
+  const markJobCompleted = async ({ contractId, message }: { contractId: string, message?: string }): Promise<Contract> => {
+    const { data, error } = await supabase
+      .from('contracts')
+      .update({ 
+        status: 'completed',
+        end_date: new Date().toISOString()
+      })
+      .eq('id', contractId)
+      .select('*')
+      .single();
+    
+    if (error) throw error;
+    
+    return data as Contract;
+  };
+  
   // Queries
   const useMyContracts = () => {
     return useQuery({
@@ -303,11 +322,35 @@ export function useContracts() {
     });
   };
 
+  // New mutation for job completion
+  const useMarkJobCompleted = () => {
+    return useMutation({
+      mutationFn: markJobCompleted,
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['myContracts'] });
+        queryClient.invalidateQueries({ queryKey: ['myJobs'] });
+        queryClient.invalidateQueries({ queryKey: ['job'] });
+        toast({ 
+          title: 'Job marked as completed',
+          description: 'The customer will be notified to review and release payment.'
+        });
+      },
+      onError: (error: any) => {
+        toast({ 
+          title: 'Failed to mark job as completed', 
+          description: error.message,
+          variant: 'destructive' 
+        });
+      },
+    });
+  };
+
   return {
     useMyContracts,
     useCreateContract,
     useUpdateContract,
     useReleasePayment,
+    useMarkJobCompleted,
     useStripeCheckout,
   };
 }

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Clock, CheckCircle, XCircle, RefreshCcw } from 'lucide-react';
+import { PlusCircle, Clock, CheckCircle, XCircle, RefreshCcw, Wallet } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import PostJobModal from '@/components/jobs/PostJobModal';
 import JobsList from '@/components/jobs/JobsList';
@@ -31,35 +32,6 @@ const CustomerDashboard = () => {
     queryClient.invalidateQueries({ queryKey: ['myJobs'] });
     refetchJobs();
   }, [refetchJobs, queryClient]);
-
-  // Add this console log to debug contracts loading
-  useEffect(() => {
-    const fetchContracts = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        
-        const { data, error } = await supabase
-          .from('contracts')
-          .select(`
-            *,
-            job:job_id(*),
-            bid:bid_id(*)
-          `)
-          .eq('customer_id', user.id);
-        
-        if (error) {
-          console.error("Error fetching contracts:", error);
-        } else {
-          console.log("Customer contracts found:", data?.length || 0, data);
-        }
-      } catch (err) {
-        console.error("Error in fetchContracts:", err);
-      }
-    };
-    
-    fetchContracts();
-  }, []);
 
   const handleRefresh = () => {
     console.log("Manually refreshing dashboard data");
@@ -87,6 +59,11 @@ const CustomerDashboard = () => {
   const openJobsCount = jobs?.filter(job => job.status === 'open').length || 0;
   const inProgressJobsCount = jobs?.filter(job => job.status === 'in_progress').length || 0;
   const completedJobsCount = jobs?.filter(job => job.status === 'completed').length || 0;
+  
+  // Count contracts by payment status
+  const inEscrowCount = contracts?.filter(contract => contract.payment_status === 'in_escrow').length || 0;
+  const inEscrowAmount = contracts?.filter(contract => contract.payment_status === 'in_escrow')
+    .reduce((sum, contract) => sum + Number(contract.amount || 0), 0);
   
   console.log("CustomerDashboard rendered with jobs:", jobs?.length);
   
@@ -157,11 +134,12 @@ const CustomerDashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Jobs</p>
-                <p className="text-3xl font-bold">{jobs?.length || 0}</p>
+                <p className="text-sm font-medium text-muted-foreground">In Escrow</p>
+                <p className="text-3xl font-bold">${inEscrowAmount.toFixed(2)}</p>
+                <p className="text-xs text-gray-500">{inEscrowCount} active contract{inEscrowCount !== 1 ? 's' : ''}</p>
               </div>
-              <div className="p-2 bg-purple-100 rounded-full">
-                <CheckCircle className="h-6 w-6 text-purple-600" />
+              <div className="p-2 bg-blue-100 rounded-full">
+                <Wallet className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </CardContent>

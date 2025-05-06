@@ -5,12 +5,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { Send, ChevronLeft } from 'lucide-react';
+import MessageInput from '@/components/messaging/MessageInput';
 
 const Messages = () => {
   const { userId } = useParams<{ userId?: string }>();
@@ -54,17 +55,14 @@ const Messages = () => {
     }
   }, [selectedUserId, navigate]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedUserId || !message.trim()) return;
+  const handleSendMessage = async (content: string) => {
+    if (!selectedUserId || !content.trim()) return;
     
     try {
       await sendMessageMutation.mutateAsync({
         receiver_id: selectedUserId,
-        content: message.trim()
+        content: content.trim()
       });
-      setMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -214,21 +212,13 @@ const Messages = () => {
                   </div>
                   
                   {/* Message input */}
-                  <form onSubmit={handleSendMessage} className="p-4 border-t flex items-center space-x-2">
-                    <Input
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                  <div className="p-4 border-t">
+                    <MessageInput 
+                      onSendMessage={handleSendMessage}
+                      isLoading={sendMessageMutation.isPending}
                       placeholder="Type a message..."
-                      className="flex-grow"
                     />
-                    <Button
-                      type="submit"
-                      disabled={!message.trim() || sendMessageMutation.isPending}
-                      className="bg-donezo-blue hover:bg-donezo-blue/90"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </form>
+                  </div>
                 </>
               ) : (
                 <div className="flex items-center justify-center h-full">

@@ -143,25 +143,16 @@ export function useMessages() {
     if (!user?.id) throw new Error("You must be logged in to send messages");
     
     try {
-      // Check if the receiver exists
-      const { data: receiverExists, error: receiverError } = await supabase
-        .from('auth')
-        .select('id')
-        .eq('id', message.receiver_id)
-        .maybeSingle();
-      
-      // Instead of checking if the receiver exists in the auth table directly (which we can't do),
-      // we'll proceed with sending the message and handle any potential errors that occur
-      
+      // Insert the message directly without checking if receiver exists
       const { data, error } = await supabase
         .from('messages')
-        .insert([{
+        .insert({
           sender_id: user.id,
           receiver_id: message.receiver_id,
           job_id: message.job_id || null,
           content: message.content,
           is_read: false
-        }])
+        })
         .select('*')
         .single();
       

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Contract } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useContracts } from '@/hooks/useContracts';
+import { useJobImages } from '@/hooks/useJobImages';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,10 +15,12 @@ import {
   AlertDialogDescription, 
   AlertDialogFooter, 
   AlertDialogHeader, 
-  AlertDialogTitle 
+  AlertDialogTitle, 
+  AlertDialogTrigger
 } from '@/components/ui/alert-dialog';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
+import JobCompletionForm from './JobCompletionForm';
 import { 
   LinkIcon, 
   MessageSquare, 
@@ -28,7 +31,9 @@ import {
   Loader2,
   Wallet,
   MapPin,
-  CreditCard
+  CreditCard,
+  Camera,
+  ImageIcon
 } from 'lucide-react';
 
 interface ContractsListProps {
@@ -38,13 +43,19 @@ interface ContractsListProps {
 const ContractsList = ({ contracts }: ContractsListProps) => {
   const { user } = useAuth();
   const { useReleasePayment, useStripeCheckout } = useContracts();
+  const { useContractAfterImages } = useJobImages();
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [trackLocationModalOpen, setTrackLocationModalOpen] = useState(false);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [jobCompletionDialogOpen, setJobCompletionDialogOpen] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [viewImagesDialogOpen, setViewImagesDialogOpen] = useState(false);
   
   const releasePaymentMutation = useReleasePayment();
   const stripeCheckoutMutation = useStripeCheckout();
+  
+  const { data: afterImages = [] } = useContractAfterImages(selectedContractId || undefined);
 
   const handleReleasePayment = (contractId: string) => {
     setSelectedContractId(contractId);
@@ -58,6 +69,16 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
   const handleTrackLocation = (providerId: string) => {
     setSelectedProviderId(providerId);
     setTrackLocationModalOpen(true);
+  };
+
+  const handleJobCompletion = (contract: Contract) => {
+    setSelectedContract(contract);
+    setJobCompletionDialogOpen(true);
+  };
+
+  const handleViewImages = (contractId: string) => {
+    setSelectedContractId(contractId);
+    setViewImagesDialogOpen(true);
   };
 
   const confirmReleasePayment = async () => {
@@ -240,11 +261,36 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
                   <MapPin className="h-4 w-4 mr-2" /> Track Provider
                 </Button>
               )}
+              
+              {/* Mark job complete button for providers */}
+              {user?.id === contract.provider_id && 
+                contract.status === 'in_progress' && 
+                contract.payment_status === 'in_escrow' && (
+                <Button 
+                  className="flex-1 min-w-[120px] bg-donezo-teal hover:bg-donezo-teal/90"
+                  onClick={() => handleJobCompletion(contract)}
+                >
+                  <Camera className="h-4 w-4 mr-2" /> Mark Complete
+                </Button>
+              )}
+              
+              {/* View completion photos button for customers */}
+              {user?.id === contract.customer_id &&
+                contract.status === 'completed' && (
+                <Button 
+                  className="flex-1 min-w-[120px]"
+                  variant="outline"
+                  onClick={() => handleViewImages(contract.id)}
+                >
+                  <ImageIcon className="h-4 w-4 mr-2" /> View Photos
+                </Button>
+              )}
             </CardFooter>
           </Card>
         ))}
       </div>
 
+      {/* Release Payment Dialog */}
       <AlertDialog open={releaseDialogOpen} onOpenChange={setReleaseDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -271,7 +317,6 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
               <div className="py-4">
                 <div className="bg-gray-200 h-64 rounded-md flex items-center justify-center">
                   <p className="text-gray-500">Provider's location will appear here</p>
-                  {/* In a real app, this would show a map with the provider's location */}
                 </div>
                 <p className="mt-4 text-sm">
                   The service provider's location will be updated in real-time when they're en route to your location.
@@ -281,6 +326,62 @@ const ContractsList = ({ contracts }: ContractsListProps) => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setTrackLocationModalOpen(false)}>Close</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Job Completion Modal */}
+      <AlertDialog open={jobCompletionDialogOpen} onOpenChange={setJobCompletionDialogOpen}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Job as Completed</AlertDialogTitle>
+          </AlertDialogHeader>
+          
+          {selectedContract && (
+            <JobCompletionForm 
+              contract={selectedContract}
+              onCompleted={() => setJobCompletionDialogOpen(false)} 
+            />
+          )}
+          
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* View Images Dialog */}
+      <AlertDialog open={viewImagesDialogOpen} onOpenChange={setViewImagesDialogOpen}>
+        <AlertDialogContent className="max-w-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Job Completion Photos</AlertDialogTitle>
+          </AlertDialogHeader>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
+            {afterImages.length > 0 ? (
+              afterImages.map(image => (
+                <div key={image.id} className="relative">
+                  <img 
+                    src={image.image_url} 
+                    alt={image.description || "Job completion"} 
+                    className="h-40 w-full object-cover rounded-md"
+                  />
+                  {image.description && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 p-2">
+                      <p className="text-white text-xs">{image.description}</p>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="col-span-3 text-center py-8">
+                <p className="text-gray-500">No completion photos available</p>
+              </div>
+            )}
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setViewImagesDialogOpen(false)}>Close</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
