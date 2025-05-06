@@ -10,7 +10,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Services from "./pages/Services";
 import About from "./pages/About";
-import HowItWorks from "./components/HowItWorks";
+import HowItWorksPage from "./pages/HowItWorksPage";
 import PrivacyPolicy from "./pages/policies/PrivacyPolicy";
 import TermsOfService from "./pages/policies/TermsOfService";
 import CookiePolicy from "./pages/policies/CookiePolicy";
@@ -39,6 +39,7 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/services" element={<Services />} />
+                <Route path="/how-it-works" element={<HowItWorksPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/messages/:userId?" element={<Messages />} />
                 <Route path="/notifications" element={<Notifications />} />
