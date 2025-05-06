@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Contract } from '@/types';
@@ -186,34 +185,25 @@ export function useContracts() {
       
       if (contractError) throw contractError;
       
-      // Create a checkout session through our backend
-      const response = await fetch('/api/create-checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
-        body: JSON.stringify({
+      // Call the Supabase Edge Function instead of using fetch
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
           contractId: contract.id,
           amount: contract.amount,
           jobTitle: contract.job.title,
           providerId: contract.provider_id
-        }),
+        }
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create checkout session');
-      }
+      if (error) throw new Error(error.message || 'Failed to create checkout session');
       
-      const { checkoutUrl } = await response.json();
-      return checkoutUrl;
+      return data.checkoutUrl;
     } catch (err) {
       console.error("Error creating Stripe session:", err);
       throw err;
     }
   };
-
+  
   // Queries
   const useMyContracts = () => {
     return useQuery({
