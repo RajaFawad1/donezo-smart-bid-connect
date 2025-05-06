@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBids } from '@/hooks/useBids';
@@ -14,6 +13,8 @@ import ContractsList from '@/components/contracts/ContractsList';
 import JobsList from '@/components/jobs/JobsList';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { useEffect } from 'react';
 
 const ProviderDashboard = () => {
   const { user } = useAuth();
@@ -48,6 +49,34 @@ const ProviderDashboard = () => {
     }
   };
   
+  useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { data, error } = await supabase
+          .from('contracts')
+          .select(`
+            *,
+            job:job_id(*),
+            bid:bid_id(*)
+          `)
+          .eq('provider_id', user.id);
+        
+        if (error) {
+          console.error("Error fetching contracts:", error);
+        } else {
+          console.log("Provider contracts found:", data?.length || 0, data);
+        }
+      } catch (err) {
+        console.error("Error in fetchContracts:", err);
+      }
+    };
+    
+    fetchContracts();
+  }, []);
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8 flex justify-between items-center">

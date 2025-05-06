@@ -31,6 +31,35 @@ const CustomerDashboard = () => {
     refetchJobs();
   }, [refetchJobs, queryClient]);
 
+  // Add this console log to debug contracts loading
+  useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { data, error } = await supabase
+          .from('contracts')
+          .select(`
+            *,
+            job:job_id(*),
+            bid:bid_id(*)
+          `)
+          .eq('customer_id', user.id);
+        
+        if (error) {
+          console.error("Error fetching contracts:", error);
+        } else {
+          console.log("Customer contracts found:", data?.length || 0, data);
+        }
+      } catch (err) {
+        console.error("Error in fetchContracts:", err);
+      }
+    };
+    
+    fetchContracts();
+  }, []);
+
   const handleRefresh = () => {
     console.log("Manually refreshing dashboard data");
     queryClient.invalidateQueries({ queryKey: ['myJobs'] });

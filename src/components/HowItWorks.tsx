@@ -1,66 +1,112 @@
 
 import React from 'react';
+import { Container } from '@/components/ui/container';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckIcon } from 'lucide-react';
 
 const HowItWorks = () => {
   const steps = [
     {
-      number: '01',
       title: 'Post a Job',
-      description: 'Describe what you need done, add photos if needed, set your budget, and choose a preferred completion date.',
-      color: 'donezo-blue',
+      description: 'Describe what you need help with. Be specific about the task, location, and your budget.'
     },
     {
-      number: '02',
-      title: 'Get Competing Bids',
-      description: 'Qualified service providers in your area will submit competitive bids for your job.',
-      color: 'donezo-teal',
+      title: 'Receive Bids',
+      description: 'Service providers in your area will send bids. Compare prices, reviews, and availability.'
     },
     {
-      number: '03',
-      title: 'Choose Your Provider',
-      description: 'Review bids, provider profiles, and ratings. AI recommendations help you find the best match.',
-      color: 'donezo-blue',
+      title: 'Choose a Provider',
+      description: 'Select the best service provider for your job. Message them to clarify any details.'
     },
     {
-      number: '04',
-      title: 'Get it Done',
-      description: "Your selected provider completes the job. Payment is only released when you're satisfied.", // Changed to double quotes
-      color: 'donezo-teal',
+      title: 'Pay Securely',
+      description: 'Your payment is held securely in escrow until the job is completed to your satisfaction.'
     },
+    {
+      title: 'Job Completed',
+      description: 'After the job is done, release payment and leave a review for the service provider.'
+    }
+  ];
+
+  const benefits = [
+    'Verified service providers',
+    'Secure payment system',
+    'Quality guarantees',
+    'Transparent pricing',
+    'No hidden fees',
+    'Real-time tracking',
+    'In-app messaging',
+    'Photo documentation'
   ];
 
   return (
-    <div id="how-it-works" className="py-16 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h2 className="text-base text-donezo-blue font-semibold tracking-wide uppercase">How it Works</h2>
-          <p className="mt-1 text-3xl font-extrabold text-gray-900 sm:text-4xl sm:tracking-tight">
-            Simple, transparent, effective
-          </p>
-          <p className="max-w-xl mt-5 mx-auto text-xl text-gray-500">
-            Our platform makes it easy to get the services you need in just a few simple steps.
+    <Container className="py-16">
+      <div className="max-w-4xl mx-auto space-y-12">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold tracking-tight">How It Works</h1>
+          <p className="text-xl text-gray-600">
+            Donezo connects customers with skilled service providers in just a few simple steps.
           </p>
         </div>
 
-        <div className="mt-12">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-8">
+          <h2 className="text-2xl font-semibold">Simple 5-Step Process</h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {steps.map((step, index) => (
-              <div 
-                key={index} 
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
-              >
-                <div className={`bg-${step.color} h-2`}></div>
-                <div className="p-6">
-                  <p className={`text-${step.color} text-2xl font-bold`}>{step.number}</p>
-                  <h3 className="mt-2 text-lg font-medium text-gray-900">{step.title}</h3>
-                  <p className="mt-3 text-base text-gray-500">{step.description}</p>
+              <Card key={index} className="relative overflow-hidden border-t-4 border-donezo-blue">
+                <div className="absolute -right-3 -top-3 bg-donezo-blue/10 rounded-full w-20 h-20 flex items-center justify-center text-3xl font-bold text-donezo-blue">
+                  {index + 1}
                 </div>
-              </div>
+                <CardHeader>
+                  <CardTitle>{step.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">{step.description}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
+
+        <div className="grid md:grid-cols-2 gap-8 items-center pt-8">
+          <div>
+            <h2 className="text-2xl font-semibold mb-6">Why Choose Donezo</h2>
+            <div className="space-y-4">
+              {benefits.map((benefit, index) => (
+                <div key={index} className="flex items-center">
+                  <div className="bg-donezo-teal/20 rounded-full p-1 mr-3">
+                    <CheckIcon className="h-5 w-5 text-donezo-teal" />
+                  </div>
+                  <p>{benefit}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-gray-50 p-6 rounded-lg">
+            <h2 className="text-2xl font-semibold mb-4">Satisfaction Guaranteed</h2>
+            <p className="mb-4">
+              At Donezo, we're committed to ensuring quality service. If you're not 100% satisfied, we'll work with you to make it right.
+            </p>
+            <p className="text-sm text-gray-500">
+              Our platform includes a dispute resolution process and a customer satisfaction guarantee for all services booked through Donezo.
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-donezo-blue text-white rounded-lg p-8 text-center">
+          <h2 className="text-2xl font-semibold mb-4">Ready to get started?</h2>
+          <p className="mb-6">Post your first job or sign up as a service provider today.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="/dashboard" className="bg-white text-donezo-blue py-2 px-6 rounded-md font-medium hover:bg-gray-100 transition-colors">
+              Post a Job
+            </a>
+            <a href="/onboarding" className="bg-transparent border border-white text-white py-2 px-6 rounded-md font-medium hover:bg-white/10 transition-colors">
+              Become a Provider
+            </a>
+          </div>
+        </div>
       </div>
-    </div>
+    </Container>
   );
 };
 

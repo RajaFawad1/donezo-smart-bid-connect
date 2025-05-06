@@ -1,16 +1,11 @@
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, Locate } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-
-interface Location {
-  latitude: number;
-  longitude: number;
-  timestamp: number;
-}
 
 interface LocationTrackerProps {
   contractId: string;
@@ -18,201 +13,264 @@ interface LocationTrackerProps {
   isProvider: boolean;
 }
 
-const LocationTracker = ({ contractId, providerId, isProvider }: LocationTrackerProps) => {
+const LocationTracker: React.FC<LocationTrackerProps> = ({ contractId, providerId, isProvider }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [tracking, setTracking] = useState(false);
-  const [location, setLocation] = useState<Location | null>(null);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isSharing, setIsSharing] = useState<boolean>(false);
   const [watchId, setWatchId] = useState<number | null>(null);
-  const [channel, setChannel] = useState<any>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
   
-  // Set up realtime subscription to location updates
+  // For providers: Share location
+  const startSharingLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Location sharing not supported",
+        description: "Your browser doesn't support location sharing.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const id = navigator.geolocation.watchPosition(
+      async (position) => {
+        const newLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        };
+        setLocation(newLocation);
+        setLastUpdated(new Date().toLocaleTimeString());
+        
+        // Update location in Supabase
+        try {
+          const { error } = await supabase
+            .from('provider_locations')
+            .upsert({
+              provider_id: user?.id,
+              contract_id: contractId,
+              latitude: newLocation.latitude,
+              longitude: newLocation.longitude,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'provider_id,contract_id'
+            });
+            
+          if (error) {
+            console.error("Error updating location:", error);
+          }
+        } catch (err) {
+          console.error("Exception updating location:", err);
+        }
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        toast({
+          title: "Location error",
+          description: `Error getting location: ${error.message}`,
+          variant: "destructive"
+        });
+        stopSharingLocation();
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 30000,
+        timeout: 27000
+      }
+    );
+    
+    setWatchId(id);
+    setIsSharing(true);
+  };
+  
+  const stopSharingLocation = () => {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      setWatchId(null);
+    }
+    setIsSharing(false);
+  };
+  
+  // For customers: Get provider's location
   useEffect(() => {
-    if (!contractId || !user?.id) return;
+    if (isProvider || !providerId) return;
     
-    // Create and subscribe to the channel
-    const locationChannel = supabase.channel(`contract-${contractId}-location`);
+    const fetchProviderLocation = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('provider_locations')
+          .select('*')
+          .eq('provider_id', providerId)
+          .eq('contract_id', contractId)
+          .single();
+          
+        if (error) {
+          if (error.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+            console.error("Error fetching provider location:", error);
+          }
+          return;
+        }
+        
+        if (data) {
+          setLocation({
+            latitude: data.latitude,
+            longitude: data.longitude
+          });
+          
+          const updatedAt = new Date(data.updated_at);
+          const now = new Date();
+          const diffMinutes = (now.getTime() - updatedAt.getTime()) / (1000 * 60);
+          
+          // Only show location if updated in the last 5 minutes
+          if (diffMinutes > 5) {
+            setLocation(null);
+            setLastUpdated("Location data is outdated");
+          } else {
+            setLastUpdated(updatedAt.toLocaleTimeString());
+          }
+        }
+      } catch (err) {
+        console.error("Exception fetching provider location:", err);
+      }
+    };
     
-    // Handle location updates
-    locationChannel
-      .on('broadcast', { event: 'location' }, (payload) => {
-        if (payload.payload && typeof payload.payload === 'object') {
-          setLocation(payload.payload as Location);
+    fetchProviderLocation();
+    
+    // Set up subscription to location changes
+    const channel = supabase
+      .channel('public:provider_locations')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'provider_locations',
+        filter: `provider_id=eq.${providerId}` 
+      }, (payload) => {
+        if (payload.new) {
+          setLocation({
+            latitude: payload.new.latitude,
+            longitude: payload.new.longitude
+          });
+          setLastUpdated(new Date(payload.new.updated_at).toLocaleTimeString());
         }
       })
       .subscribe();
-    
-    setChannel(locationChannel);
+      
+    // Refetch every 30 seconds as a backup
+    const interval = setInterval(fetchProviderLocation, 30000);
     
     return () => {
-      if (locationChannel) {
-        supabase.removeChannel(locationChannel);
-      }
+      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [contractId, user?.id]);
+  }, [providerId, contractId, isProvider]);
   
-  // Start or stop location tracking
-  const toggleTracking = () => {
-    if (tracking) {
-      // Stop tracking
+  // Clean up watch when component unmounts
+  useEffect(() => {
+    return () => {
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
-        setWatchId(null);
       }
-      setTracking(false);
-      toast({
-        title: "Location sharing stopped",
-        description: "You are no longer sharing your location"
-      });
-    } else {
-      // Start tracking
-      if (!navigator.geolocation) {
-        toast({
-          title: "Geolocation not supported",
-          description: "Your browser does not support location tracking",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      const id = navigator.geolocation.watchPosition(
-        (position) => {
-          const newLocation: Location = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            timestamp: position.timestamp
-          };
-          
-          setLocation(newLocation);
-          
-          // Broadcast location to the channel
-          if (channel) {
-            channel.send({
-              type: 'broadcast',
-              event: 'location',
-              payload: newLocation
-            });
-          }
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          toast({
-            title: "Location error",
-            description: getLocationErrorMessage(error),
-            variant: "destructive"
-          });
-          setTracking(false);
-        },
-        { 
-          enableHighAccuracy: true,
-          maximumAge: 30000,
-          timeout: 27000
-        }
-      );
-      
-      setWatchId(id);
-      setTracking(true);
-      toast({
-        title: "Location sharing started",
-        description: "Your live location is now visible to the other party"
-      });
-    }
-  };
+    };
+  }, [watchId]);
   
-  const getLocationErrorMessage = (error: GeolocationPositionError): string => {
-    switch (error.code) {
-      case error.PERMISSION_DENIED:
-        return "Location permission was denied. Please enable location services in your browser settings.";
-      case error.POSITION_UNAVAILABLE:
-        return "Location information is unavailable.";
-      case error.TIMEOUT:
-        return "The request to get location timed out.";
-      default:
-        return "An unknown error occurred while getting location.";
-    }
-  };
-  
-  const getLocationText = () => {
-    if (!location) return "No location data available";
-    
-    // Format the coordinates
-    const lat = location.latitude.toFixed(6);
-    const lng = location.longitude.toFixed(6);
-    
-    // Format the timestamp
-    const date = new Date(location.timestamp);
-    const timeString = date.toLocaleTimeString();
-    
-    return `Location: ${lat}, ${lng} (as of ${timeString})`;
-  };
-
-  if (!isProvider && !location) {
+  if (isProvider) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mt-4">
-        <div className="flex items-center">
-          <MapPin className="h-5 w-5 text-yellow-500 mr-2" />
-          <p className="text-sm text-yellow-700">
-            The service provider hasn't shared their location yet
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white border rounded-md p-4 mt-4">
-      <h3 className="text-lg font-medium mb-2">Location Tracking</h3>
-      
-      {isProvider ? (
-        <div className="space-y-4">
-          <Button
-            onClick={toggleTracking}
-            className={tracking ? "bg-red-500 hover:bg-red-600" : "bg-donezo-blue hover:bg-donezo-blue/90"}
-          >
-            {tracking ? (
-              <>Stop sharing location</>
-            ) : (
-              <>Share my location</>
-            )}
-          </Button>
-          
-          {tracking && (
-            <p className="text-sm text-muted-foreground">
-              {getLocationText()}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div>
-          {location ? (
-            <div>
-              <div className="flex items-center">
-                <MapPin className="h-5 w-5 text-green-500 mr-2" />
-                <p className="text-sm">{getLocationText()}</p>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Service provider is sharing their location in real-time
-              </p>
-              <div className="mt-3">
-                <a
-                  href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:text-blue-800"
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <MapPin className="h-5 w-5 mr-2" />
+            Location Sharing
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isSharing ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-600 font-medium">
+                    Currently sharing your location
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Last updated: {lastUpdated || 'Just now'}
+                  </p>
+                </div>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={stopSharingLocation}
                 >
-                  View on Google Maps
-                </a>
+                  Stop Sharing
+                </Button>
               </div>
+              {location && (
+                <div className="bg-gray-50 p-3 rounded-md text-xs">
+                  <p>Lat: {location.latitude.toFixed(6)}</p>
+                  <p>Long: {location.longitude.toFixed(6)}</p>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="flex items-center">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
-              <p className="text-sm text-muted-foreground">Waiting for location updates...</p>
+            <div className="text-center py-3">
+              <p className="mb-3 text-sm text-gray-600">
+                Share your location with the customer so they can track your arrival.
+              </p>
+              <Button onClick={startSharingLocation}>
+                <Locate className="h-4 w-4 mr-2" />
+                Start Location Sharing
+              </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Customer view
+  return location ? (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <MapPin className="h-5 w-5 mr-2" />
+          Provider Location
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div className="h-48 bg-gray-100 rounded-md flex items-center justify-center relative">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="text-gray-500">
+                Provider's location is available
+              </p>
+              {/* In a real app, this would show a map with the provider's location */}
+            </div>
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Last updated: {lastUpdated}</span>
+            <span>
+              Lat: {location.latitude.toFixed(6)}, Long: {location.longitude.toFixed(6)}
+            </span>
+          </div>
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
+  ) : (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <MapPin className="h-5 w-5 mr-2" />
+          Provider Location
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-center py-4">
+          <p className="text-gray-500 mb-1">
+            Location tracking not available
+          </p>
+          <p className="text-xs text-gray-400">
+            The service provider is not currently sharing their location
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

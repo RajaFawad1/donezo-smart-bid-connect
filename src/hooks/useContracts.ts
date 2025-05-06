@@ -8,23 +8,35 @@ export function useContracts() {
   const queryClient = useQueryClient();
 
   const getMyContracts = async (): Promise<Contract[]> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id;
-    
-    if (!userId) return [];
-    
-    const { data, error } = await supabase
-      .from('contracts')
-      .select(`
-        *,
-        job:job_id(*),
-        bid:bid_id(*)
-      `)
-      .or(`customer_id.eq.${userId},provider_id.eq.${userId}`)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data as Contract[];
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      
+      if (!userId) return [];
+      
+      console.log("Fetching contracts for user:", userId);
+      
+      const { data, error } = await supabase
+        .from('contracts')
+        .select(`
+          *,
+          job:job_id(*),
+          bid:bid_id(*)
+        `)
+        .or(`customer_id.eq.${userId},provider_id.eq.${userId}`)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error("Error fetching contracts:", error);
+        throw error;
+      }
+      
+      console.log("Contracts found:", data?.length || 0);
+      return data as Contract[];
+    } catch (error) {
+      console.error("Exception in getMyContracts:", error);
+      throw error;
+    }
   };
 
   const createContract = async (contract: Partial<Contract>): Promise<Contract> => {
